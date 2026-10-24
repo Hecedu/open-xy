@@ -378,6 +378,26 @@ def generate_fx_object(directory, m):
                   Path(directory) / f'fx_object_{m.prefix}.cpp')
 
 
+def generate_player_object(directory, m):
+    """A player's stock object methods around its press and release."""
+    return expand('player_object.cpp.in', dict(PREFIX=m.prefix, NAMESPACE=m.definition['id'], NAME=m.native_name,
+                                               TYPE=m.identity['player']),
+                  Path(directory) / f'player_object_{m.prefix}.cpp')
+
+
+def generate_player_table(directory, machines):
+    """The collection's players, which the stock player hooks look up."""
+    players = [m for m in machines if m.kind == 'player']
+    declarations = [f'const opxy::platform::Player* {m.prefix}_player() __asm__("{m.prefix}_player");' for m in players]
+    rows = [f'    {{{m.prefix}_player}},' for m in players]
+    return expand('player_table.cpp.in', dict(DECLS='\n'.join(declarations), ROWS='\n'.join(rows)),
+                  Path(directory) / 'player_table.cpp')
+
+
+# Stock lists Arpeggio, Hold and Maestro (types 2..4) with catalog IDs 6..8.
+PLAYER_CATALOG_OFFSET = 4
+
+
 def stock_labels(m):
     """Control names as the stock parameter page shows them."""
     return ', '.join(json.dumps(p['label'].lower()) for p in m.definition['parameters'])
@@ -391,9 +411,10 @@ def catalog_defaults(definition):
 
 def catalog_entry(m):
     """The stock catalog text inserted for a machine, in the reviewed byte layout."""
-    if m.kind == 'effect':
+    if m.kind in ('effect', 'player'):
+        number = m.identity['effect'] if m.kind == 'effect' else m.identity['player'] + PLAYER_CATALOG_OFFSET
         return (',\n        {\n            "type": ' + json.dumps(m.native_name) +
-                ',\n            "id": ' + str(m.identity['effect']) +
+                ',\n            "id": ' + str(number) +
                 ',\n            "default_params": ' + json.dumps(catalog_defaults(m.definition)) + '\n        }')
     return (',\n        {\n            "type": ' + json.dumps(m.native_name) +
             ',\n            "default_params": ' + json.dumps(catalog_defaults(m.definition)) + '\n        }\n')

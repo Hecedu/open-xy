@@ -62,13 +62,16 @@ class Services(unittest.TestCase):
         profile = config()
         self.assertEqual(active_services(profile, ['synth', 'effect']), set())
         self.assertEqual(active_services(profile, ['sample']), {'samples'})
+        self.assertEqual(active_services(profile, ['player']), {'players'})
         machines = discovered()  # every machine folder, whatever the collection selects
-        self.assertTrue(any(m.kind == 'sample' for m in machines))
+        self.assertTrue(any(m.kind == 'sample' for m in machines) and any(m.kind == 'player' for m in machines))
         steps = lambda selection: [step for _name, m, step in native.plan(selection) if m is None]
         self.assertEqual(steps(machines), list(native.SDK_UNITS))  # full collections keep the link order
-        without = [m for m in machines if m.kind != 'sample']
+        without = [m for m in machines if m.kind not in ('sample', 'player')]
         self.assertEqual(steps(without), [u for u in native.SDK_UNITS if u not in native.UNIT_SERVICES])
-        self.assertEqual(set(native.object_services(machines).values()), {'samples'})
+        players = [m for m in machines if m.kind != 'sample']
+        self.assertEqual(steps(players), [u for u in native.SDK_UNITS if native.UNIT_SERVICES.get(u) != 'samples'])
+        self.assertEqual(set(native.object_services(machines).values()), {'samples', 'players'})
         self.assertEqual(native.object_services(without), {})
 
     def test_only_a_service_edit_may_stay_stock(self):

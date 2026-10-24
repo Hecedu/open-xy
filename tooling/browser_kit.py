@@ -46,6 +46,8 @@ def export(package, output, tools, preview_cxx='clang++', *, stock_catalog):
         # An unselected machine's startup and catalog callbacks decline.
         if m.kind == 'effect':
             entry['absent'] = {m.prefix + suffix: 'kit_absent' for suffix in ('_fx_register', '_ready')}
+        elif m.kind == 'player':
+            entry['absent'] = {m.prefix + '_player': 'kit_absent'}
         else:
             entry['absent'] = {m.prefix + suffix: 'kit_absent' for suffix in ('_register', '_name_matches', '_ready')}
             if m.display == 'stock':

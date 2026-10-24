@@ -3,7 +3,7 @@
 // Every firmware rule (edits, hooks, identity ranges, catalog offsets, table
 // bytes) comes from the reviewed profile, authenticated by this digest. The
 // Python SDK reads the same constant.
-export const PROFILE_SHA256 = '55f3fc0e0d065ae6664589e6587ffb1134be4ba741fdd6f748da8b7bc7ecd0be';
+export const PROFILE_SHA256 = '61b72ab7e06a104ad1f6cc9c51a1bb6aab8da712b64446eee2b1d54a72b640f8';
 export function requireThat(ok, message) { if (!ok) throw new Error(message); }
 const check = requireThat;
 const utf8 = new TextEncoder();
@@ -97,6 +97,9 @@ export function readObject(bytes) {
 
 // The profile's identity rules, as tooling.machines.check_identity applies them.
 export function validIdentity(rules, kind, identity) {
+  if (kind === 'player')
+    return !!identity && typeof identity === 'object' && Object.keys(identity).join() === 'player' &&
+      Number.isInteger(identity.player) && rules.players.includes(identity.player);
   const slot = kind === 'effect' ? 'effect' : 'engine';
   if (!identity || typeof identity !== 'object' || Object.keys(identity).sort().join() !== [slot, 'page'].sort().join()) return false;
   const n = identity[slot], page = identity.page;
@@ -110,13 +113,14 @@ export function validIdentity(rules, kind, identity) {
 // Assignments are catalog-wide, independent of selection order. New IDs are
 // curated once, then remain reserved even when their machine is deselected.
 export function identities(kit, saved = null) {
-  const seen = {engine: new Set(), effect: new Set(), page: new Set()}, result = {};
+  const seen = {engine: new Set(), effect: new Set(), page: new Set(), player: new Set()}, result = {};
   for (const m of kit.machines) {
     check(!Object.hasOwn(result, m.id), 'Duplicate machine identity');
     const id = m.identity;
     check(validIdentity(kit.profile.identities, m.kind, id), 'Identity overlaps a stock slot or exceeds capacity');
     // Sample engines and effects share stock pages; a synth's own page is unique.
-    for (const kind of m.kind === 'synth' ? ['engine', 'page'] : [m.kind === 'effect' ? 'effect' : 'engine']) {
+    const slots = {synth: ['engine', 'page'], effect: ['effect'], player: ['player']}[m.kind] ?? ['engine'];
+    for (const kind of slots) {
       check(!seen[kind].has(id[kind]), 'Conflicting ' + kind + ' assignment'); seen[kind].add(id[kind]);
     }
     result[m.id] = {...id};
@@ -390,7 +394,7 @@ export async function recoverFirmware(kit, input) {
 }
 
 export function presetPath(machine) {
-  if (machine.kind === 'effect') return null;
+  if (machine.kind === 'effect' || machine.kind === 'player') return null;
   check(['synth', 'sample'].includes(machine.kind) && /^[a-z][a-z0-9_]{0,14}$/.test(machine.id),
     'Invalid preset instrument');
   return `content/presets/${machine.id}/default.json`;
@@ -436,9 +440,13 @@ export async function buildAssets(kit, selection, catalog) {
   const machines = kit.machines.filter(m => selection.includes(m.id));
   // Each machine's entry ends its stock list; the offsets are bound to the
   // authenticated stock catalog (tooling.native.extend_catalog).
-  const groups = {engine_types: machines.filter(m => m.kind !== 'effect'), fx_types: machines.filter(m => m.kind === 'effect')};
+  const lists = {engine_types: machines.filter(m => m.kind === 'synth' || m.kind === 'sample'),
+    fx_types: machines.filter(m => m.kind === 'effect'), seq_types: machines.filter(m => m.kind === 'player')};
   const inserts = Object.entries(kit.profile.stock_catalog_inserts).sort((a, b) => b[1] - a[1]);
-  check(inserts.map(([key]) => key).sort().join() === Object.keys(groups).sort().join(), 'Unexpected catalog insertion points');
+  check(inserts.every(([key]) => Object.hasOwn(lists, key)) &&
+    Object.entries(lists).every(([key, group]) => !group.length || Object.hasOwn(kit.profile.stock_catalog_inserts, key)),
+    'Unexpected catalog insertion points');
+  const groups = Object.fromEntries(inserts.map(([key]) => [key, lists[key]]));
   let extended = catalog;
   for (const [key, at] of inserts)
     extended = join([extended.subarray(0, at), utf8.encode(groups[key].map(m => m.catalog).join('')), extended.subarray(at)]);

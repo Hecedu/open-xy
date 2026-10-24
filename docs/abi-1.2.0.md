@@ -31,14 +31,15 @@ version is rejected. The output differs from stock in exactly these places:
 | Recorder | 6 | Recognizes owned sample engines when the stock recorder selects, releases and saves a pad, and assigns completed recordings to owned pads |
 | Relocated tables | 22 | Moves the effect records (63), engine records (63) and screen slots (128) into the last 8 KiB of the reservation |
 | Screen order | 1 | Paints a selected owned synth page before stock overlays |
+| Players | 6 | Builds, loads, names and pages note players of the collection (see [players](#note-players)) |
 | Synth and effect controls | 3 | Lets an encoder press on an owned synth's page select an alternate parameter, which its turns then edit; scales fine turns on owned synth and send-effect pages |
 | Startup label | 1 | Shows `OPEN 0.0.1-1.2.0` at boot through the stock startup text renderer |
 | Module | 1 record | One loader block holding the linked module |
 
 The sample rows (sample dispatch, analysis, drum-page services and recorder)
 form the profile's `samples` service: a build applies those edits, and links
-the SDK code behind them, only when it includes a sample engine. Otherwise
-their sites stay stock. Everything else must reconstruct byte for byte. Protected ranges in
+the SDK code behind them, only when it includes a sample engine. The player
+rows form the `players` service in the same way. Otherwise their sites stay stock. Everything else must reconstruct byte for byte. Protected ranges in
 [`pipeline.py`](../tooling/pipeline.py) admit only hooks into the module and
 the reviewed startup label.
 The bootloader is never modified.
@@ -258,3 +259,40 @@ supplies only wet audio. The generated adapter exposes the machine's declared
 `dryParameter`, or returns `INT32_MAX` when none is declared, matching stock's
 absent-object fallback. This is a source-mixer control, not a wet/dry crossfade
 inside the effect. See the [effect API](api.md#effects).
+
+## Note players
+
+Stock has three players, types 2 (Arpeggio), 3 (Hold) and 4 (Maestro), built
+by a branch tree in the factory `0x8d57de60(track, type, flag)` inside a
+64 KiB slot per track (`0x84f05610 + (track << 16)`). A pattern stores its
+player as that number at `+0x34`; projects save it byte for byte. After a
+project loads, `0x8d587418` replaces a type of 1 or any type from 5 with
+Arpeggio, keeping the eight parameters. The player page indexes a five-entry
+controller table (`0x08023b1c`) with the selected track's type, without a
+bounds check.
+
+An SDK player is a stock Maestro with three methods replaced:
+
+| Slot | Method | Player |
+| --- | --- | --- |
+| `+0x08` | Type | The player's type |
+| `+0x14` | Note-on `(object, note, 0, flag, velocity) -> taken` | The player's `press`; a plan becomes a Maestro chord record |
+| `+0x18` | Note-off `(object, note)` | The player's `release`, else stock Maestro's |
+
+Maestro holds up to eight chord records of 72 bytes from `+0x1dc`, counted at
+`+0x41c`: eight `{delay, note, velocity}` tones, their count and the root.
+Its clocked step (`+0x34`) counts each delay down and plays the tone at zero
+through the sequencer; note-off releases every played tone of the records
+whose root matches. The SDK state follows at `+0x800` in the same slot.
+
+| Site | Hook |
+| --- | --- |
+| `0x8d57de60` | Factory entry: an owned type is built by the stock factory as a Maestro without the selection flag, which would reset the track's recorded Maestro chord, then takes its methods |
+| `0x8d58742c` | Project load: an owned type skips the replacement with Arpeggio |
+| `0x8c0afca2`, `0x8c0affa6` | The two controller lookups' type query: an owned type reads Maestro's entry; any other type from 5 reads Arpeggio's |
+| `0x8d5bbf50`, `0x8d5bbfd8` | Type-to-name and name-to-type entries: the catalog and menu find an owned name |
+
+The catalog appends each player to `seq_types` with ID type + 4, as stock
+numbers Arpeggio, Hold and Maestro 6..8. Firmware without the player opens
+its tracks as Arpeggio. The menu's own type query (`0x8c0afc68`) keeps the
+owned type so the catalog shows the player's name.
