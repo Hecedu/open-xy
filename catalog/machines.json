@@ -28,7 +28,7 @@
       "status": "published",
       "repository": "https://github.com/Gokux/opxy-machines",
       "tag": "v1.0.0",
-      "commit": "582818d2d3c15b5c46b90c7fa952bc9239a0a1ec",
+      "commit": "72a374a2461e5aebb0d9cbed204a37cc97742dba",
       "path": "drone"
     },
     {
@@ -38,7 +38,7 @@
       "status": "published",
       "repository": "https://github.com/Gokux/opxy-machines",
       "tag": "v1.0.0",
-      "commit": "582818d2d3c15b5c46b90c7fa952bc9239a0a1ec",
+      "commit": "72a374a2461e5aebb0d9cbed204a37cc97742dba",
       "path": "solar"
     },
     {
@@ -48,7 +48,7 @@
       "status": "published",
       "repository": "https://github.com/Gokux/opxy-machines",
       "tag": "v1.0.0",
-      "commit": "582818d2d3c15b5c46b90c7fa952bc9239a0a1ec",
+      "commit": "72a374a2461e5aebb0d9cbed204a37cc97742dba",
       "path": "papasrapa"
     }
   ]
