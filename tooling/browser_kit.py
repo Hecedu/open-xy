@@ -69,7 +69,6 @@ def export(package, output, tools, preview_cxx='clang++', *, stock_catalog, pers
             if m.kind == 'sample':
                 # The shared sample table names these; unselected, its ready check declines first.
                 entry['absent'].update({symbol: 'kit_absent' for symbol in sample_callbacks(m)})
-                entry['absent'][m.prefix + '_display_voices'] = 'kit_absent'
             if m.display != 'stock':
                 entry['absent'][m.prefix + '_screen_register'] = 'kit_absent'
         if m.display != 'stock':

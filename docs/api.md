@@ -276,8 +276,9 @@ The display receives the ordinary drawing input snapshot. Sample instruments
 may additionally call the GUI-only `opxy::sample_display(track, output)` service
 from `<opxy/sample_display.hpp>`. It copies 96 min/max waveform bins, loaded
 frames/rate/channels, current trim/direction, a publication generation and the
-track's started sample-voice count (including release tails). Peaks combine
-both channels. The bool result reports waveform availability; the voice count
+track's `active_notes` count from stock GUI note gates (distinct pitches,
+excluding release tails). Peaks combine both channels. The bool result reports
+waveform availability; note activity
 is available while an assigned sample's waveform is pending. Missing samples,
 unowned engines and the sample browser do not expose stale waveforms.
 

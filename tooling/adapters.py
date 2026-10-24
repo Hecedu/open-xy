@@ -272,8 +272,6 @@ def generate_sample_callbacks(directory, machines):
                     declarations.append(f'{result} {p}{suffix}({arguments}) __asm__("{p}{suffix}");')
                 fields.append(p + suffix if declared else 'nullptr')
         fields.append(str(int(bool(resources.get('singleSample', 0)))))
-        declarations.append(f'opxy::u32 {p}_display_voices(opxy::u32) __asm__("{p}_display_voices");')
-        fields.append(p + '_display_voices')
         rows.append('    {' + ', '.join(fields) + '},')
     return expand('sample_callbacks.cpp.in', dict(CALLBACK_DECLS='\n'.join(declarations), MACHINES='\n'.join(rows)),
                   Path(directory) / 'sample_callbacks.cpp')

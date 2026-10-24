@@ -10,14 +10,14 @@ struct SampleDisplay {
     u32 frames, rate, channels;
     u32 begin, end;         // Current trim in source frames, half-open.
     u32 reverse;
-    u32 voices;            // Started sample voices on this track, including release tails.
+    u32 active_notes;      // Distinct gated MIDI notes on this track, excluding release tails.
     i16 low[sample_display_bins], high[sample_display_bins];
 };
 }
 extern "C" bool opxy_sample_display(opxy::u32 track, opxy::SampleDisplay* output);
 namespace opxy {
 // Call only from GUI/display code. Always writes output; false means the
-// waveform is unavailable/pending. voices remains meaningful when false.
+// waveform is unavailable/pending. active_notes remains meaningful when false.
 // A host may provide this function with recorded or synthetic snapshots.
 inline bool sample_display(u32 track, SampleDisplay& output) {
     return opxy_sample_display(track, &output);
