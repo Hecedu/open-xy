@@ -10,7 +10,7 @@ namespace opxy { namespace platform {
 // declines and nothing else is called.
 struct SampleMachine {
     const char* engine_id;  // absolute symbol: the engine ID, supplied at link time
-    u32 page;               // stock sample page, 2 or 7: what the machine is, never renumbered
+    u32 page;               // page behavior: 2 sampler, 7 drums, 1 drawing; never a relocated page ID
     int (*ready)();
     // padSettings
     PadSettings (*defaults)();
@@ -24,6 +24,7 @@ struct SampleMachine {
     u32 (*prepare_begin)(const SampleView*, u32*, u32);
     u32 (*prepare_step)(u32, u32*);
     u32 (*prepared)(SampleAnalysis*);
+    u32 single;             // one sample assigned across the track, independently of display
     u32 engine() const { return static_cast<u32>(reinterpret_cast<__UINTPTR_TYPE__>(engine_id)); }
 };
 }}
@@ -45,6 +46,7 @@ inline u32 sample_page(u32 engine) {
     const SampleMachine* m = sdk_sample_machine(engine);
     return m ? m->page : 0;
 }
+inline bool own_sample_page(u32 engine) { return sample_page(engine) == 1; }
 inline bool pad_settings(u32 engine) {
     const SampleMachine* m = sdk_sample_machine(engine);
     return m && m->assign;

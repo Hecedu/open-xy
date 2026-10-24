@@ -92,6 +92,18 @@ test('machine numbering cases shared with tooling.machines', () => {
     assert.deepEqual(Object.fromEntries(Object.entries(run()).filter(([id])=>!fixed.has(id))),c.numbers,c.name);
   }
 });
+
+test('sample drawing capability reaches kit identity validation and layout allocation', () => {
+  const k=fixture();
+  k.machines.push({...machine('orbit',34,82,'personal'),kind:'sample',asset:'orbit.svg'});
+  const numbers=assignNumbers(k,['a','orbit']);
+  assert.deepEqual(numbers.orbit,{engine:35,page:83});
+  assert.deepEqual(assignNumbers(k,['orbit'],numbers).orbit,numbers.orbit);
+  // Full linking also validates the requested identity using the display capability.
+  assert.equal(linkKit(k,['a','orbit']).definitions.orbit_page_id,83);
+  delete k.machines[1].asset;
+  assert.throws(()=>linkKit(k,['a','orbit']),/no valid numbers/);
+});
 test('numbers follow the layout, not the selection order, and unselected machines link as 0', () => {
   const k=fixture(); k.machines.push(machine('b',34,82,'personal'),machine('c',34,82,'personal'));
   assert.deepEqual(assignNumbers(k,['c','b','a']),assignNumbers(k,['a','b','c']));

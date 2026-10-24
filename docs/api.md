@@ -6,7 +6,7 @@ A machine is a folder under `machines/` named after the machine. Every kind has
 | Kind | C++ the machine supplies | Example |
 | --- | --- | --- |
 | `synth` | `engine.cpp` with `Voice`/`Shared` state, `display.cpp` and `panel.svg.fragment` | [2op FM](../machines/fm2op/engine.cpp), [Macro Osc](../machines/macroosc/engine.cpp) |
-| `sample` | `sample.cpp` with `Voice` state; the stock sample page is its screen | [Timestretch](../machines/timestretch/sample.cpp) |
+| `sample` | `sample.cpp` with `Voice` state; a stock sample page, or optional `display.cpp` and `panel.svg.fragment` | [Timestretch](../machines/timestretch/sample.cpp) |
 | `effect` | `fx.cpp` with `State`; the stock FX page is its screen | [Ring Mod](../machines/ringmod/fx.cpp) |
 
 The [first-machine walkthrough](first-machine.md) creates a standalone synth
@@ -105,7 +105,7 @@ Every machine kind keeps its controls in `definition.json` (for example
 | `schema` | 1 |
 | `id` | The machine's name, equal to a bundled machine's folder name; also its C++ namespace |
 | `name` | Display name |
-| `parameters` | Ordered controls, each with `id`, `label`, `default`, `mapping`, `display`: four to eight for a synth (see [alternate controls](#alternate-controls)), one to eight for a sample engine or effect. Labels are at most eight letters, digits or spaces |
+| `parameters` | Ordered controls, each with `id`, `label`, `default`, `mapping`, `display`: four to eight for a machine with a drawing display (see [alternate controls](#alternate-controls)), otherwise one to eight. Labels are at most eight letters, digits or spaces |
 | `presets` | Named maps containing exactly the declared controls; may be empty |
 | `resources` | What the kind declares about its storage (below) |
 
@@ -121,7 +121,7 @@ page shows labels in lower case.
 
 ### Alternate controls
 
-A synth's first four parameters belong to the four encoder positions of its
+A drawing machine's first four parameters belong to the four encoder positions of its
 page. Up to four more are alternates: each also names its position with
 `"control": 0..3`. Pressing that encoder cycles the position through its own
 parameter, then its alternates in parameter order; turning it edits the one
@@ -136,7 +136,7 @@ Browser previews show the parameter last edited at each position. See
 [Macro Osc](../machines/macroosc/definition.json), whose fourth encoder
 switches between FM ratio and depth.
 
-On custom synth engine pages, Shift + turn edits the same visible parameter
+On custom synth and sample engine pages, Shift + turn edits the same visible parameter
 at one tenth of the normal rate. Enum choices keep their ordinary stepping.
 Synth amounts and bounded positive anchor-ratio captions show one decimal
 place; amounts omit the percent suffix. A machine's display can replace them with
@@ -145,7 +145,11 @@ use the slower Shift rate for continuous controls, with stock FX captions.
 
 A sample engine declares `voiceCapacity`, which must be 256 (stock creates a
 voice for each of its 256 voice indices and binds each to its sample), and the
-optional [sample services](#sample-engines) it uses. An effect declares no resources (`{}`).
+optional [sample services](#sample-engines) it uses. With SDK 1.1 it may also
+declare `display`, using the same drawing callbacks and budgets as a synth.
+That page has four to eight parameters, with alternates after the first four;
+it excludes `padSettings` and `drumControls`, which require stock drum page 7.
+An effect declares no resources (`{}`).
 A synth declares:
 
 | Field | Required value or meaning |
@@ -241,6 +245,17 @@ means 0. Callbacks are functions in the machine's namespace.
 | `padSettings` | 0 or 1; page 7 | The SDK saves 16 machine-defined bits with each pad | `sample_defaults`, `sample_assign` |
 | `drumControls` | 0 or 1; needs `padSettings` | The drum page's machine encoders and panel | `drum_control`, `drum_panel` |
 | `sampleAnalysis` | Budget in bytes, 4096..2 MiB, whole words | Prepared per-sample data | `analysis_words`, `prepare_begin`, `prepare_step`, `prepared` |
+| `singleSample` | 0 or 1; SDK 1.1; page 2 or a drawing page | Assign one sample across the track's keyboard through stock sampler assignment and recording flows, instead of multisampler zones | |
+
+`singleSample` and `display` are independent. Without `singleSample`, sample
+assignment retains the existing multisampler behavior (or canonical pads on
+page 7). A drawing page edits the engine's parameter vector through stock,
+including locks, alternates and fine turns; it does not expose drum-region
+encoders. Assignment, recording and project/preset storage remain stock-owned.
+Changing an already published machine's assignment mode changes how its saved
+sample mappings are interpreted and requires a compatibility review.
+The display receives only the ordinary drawing input snapshot; it cannot read
+the sample cache or live voice state.
 
 ### Audio block
 
@@ -381,7 +396,7 @@ preset entries, its screen file, its symbol prefix and its C++ namespace. It is 
 | Field | Contract |
 | --- | --- |
 | `schema` | 1 |
-| `sdk` | The SDK version the machine targets, `"<major>.<minor>"`. This SDK is 1.0 and builds 1.0 machines |
+| `sdk` | The SDK version the machine targets, `"<major>.<minor>"`. This SDK is 1.1 and builds 1.0 and 1.1 machines |
 | `kind` | `synth`, `sample` or `effect` |
 | `description` | Plain text of at most 160 characters, shown by the builder and preview |
 | `identity` | The numbers it asks for: `{"engine": n, "page": p}`, or `{"effect": n, "page": 21}` for an effect; see below |
@@ -397,7 +412,7 @@ source dry mixer, as described under [effects](#effects).
 | Kind | ID | Page |
 | --- | --- | --- |
 | `synth` | 34..62 | Its own screen: 82..127 |
-| `sample` | 34..62 | Stock sample page 2 or 7; `padSettings` requires 7 |
+| `sample` | 34..62 | Stock sample page 2 or 7; `padSettings` requires 7. With `display`, its own screen: 82..127 |
 | `effect` | A free stock FX ID: 1–4, 6–8 or 11 | Stock FX page 21 |
 
 IDs above 32 and pages above 81 exist only in the relocated stock tables.
@@ -417,7 +432,7 @@ the next build so every machine keeps its numbers. A machine new to the layout
 gets the numbers it asks for when they are free, otherwise the lowest free
 ones. New numbers come from engines 34..62 and pages 82..127, never from the
 gaps in stock's own engine table, so ask for numbers in those ranges; a
-sample engine keeps its stock page. Bundled Macro Osc predates this and keeps
+sample engine without a display keeps its stock page. Bundled Macro Osc predates this and keeps
 engine 26.
 
 Generated adapters check record/name ownership and screen readiness before

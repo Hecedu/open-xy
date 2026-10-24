@@ -146,7 +146,8 @@ class OutsideMachines(unittest.TestCase):
         self.assertEqual((fmcopy.identity, fmcopy.requested), (self.free, dict(self.free, engine=34)))
 
     def test_sdk_version_and_bundled_names_are_checked(self):
-        for version in ('0.9', '2.0', '1.1', '1', 'latest', None):
+        future = '%d.%d' % (machines.SDK_VERSION[0], machines.SDK_VERSION[1] + 1)
+        for version in ('0.9', '2.0', future, '1', 'latest', None):
             with self.subTest(version=version):
                 self.rename('fmcopy', self.free, version)
                 with self.assertRaises(ValueError):

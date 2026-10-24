@@ -165,15 +165,25 @@ declarations retain 64-word output.
 The stock stereo PCM reader consumes packed left/right 16-bit pairs, while
 its output writes alternating 32-bit left/right words.
 
-Requirements: flag 1, an engine ID of 34–62, and page 2 or 7. The engine never
-touches the sample cache or its lock.
+Requirements: flag 1, an engine ID of 34–62, and page 2 or 7, or a relocated
+page 82–127 when the sample machine declares a drawing display. A drawing
+sample machine registers its screen before its engine and uses the shared
+control selection, captions and compositor. The engine never touches the
+sample cache or its lock.
 
 Stock's sample predicate and note-region dispatcher also have explicit engine
 ID checks. One generated table describes the collection's sample machines
 ([`sample_callbacks.cpp.in`](../sdk/platform/opxy-1.2.0/sample_callbacks.cpp.in));
 [`sample_machines.cpp`](../sdk/platform/opxy-1.2.0/sample_machines.cpp)
 admits an ID only while its registration is still ours, and an owned engine
-borrows the multisampler payload. Track and voice IDs stay unchanged. Stock,
+borrows the multisampler note payload. `singleSample` instead aliases GUI
+assignment and recorder queries to the sampler (2), assigning one sample across
+the keyboard. Drawing pages keep the real engine in the instrument controller
+and return false only at the parameter editor's sample query (`0x8d5ab274`),
+so turns edit the eight-word engine vector. Both are C ABI call replacements
+in `drum_controls_stock.cpp`; the global sample predicate and its assembly
+stub stay unchanged. The table stores page behavior, not a relocated page
+number, so layout reassignment changes no object bytes. Track and voice IDs stay unchanged. Stock,
 absent and conflicting registrations follow the original paths. The first
 sample machine in a build enables the `samples` service; further ones add no
 firmware patch sites.

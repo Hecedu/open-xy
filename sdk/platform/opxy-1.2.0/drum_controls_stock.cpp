@@ -10,12 +10,15 @@ extern "C" {
 opxy::u32 sdk_sample_alias(opxy::u32) __asm__("sdk_sample_alias");
 opxy::u32 sdk_sample_edit(void*, opxy::u32, opxy::i32, opxy::u32) __asm__("sdk_sample_edit");
 opxy::u32 sdk_sample_ui_engine(opxy::u32) __asm__("sdk_sample_ui_engine");
+opxy::u32 sdk_sample_parameter_kind(opxy::u32) __asm__("sdk_sample_parameter_kind");
+opxy::u32 sdk_sample_controller_engine(opxy::u32) __asm__("sdk_sample_controller_engine");
 opxy::u32 sdk_sample_press_engine_owned(opxy::u32, opxy::u32) __asm__("sdk_sample_press_engine_owned");
 opxy::u32 sdk_sample_region_control(opxy::u32, opxy::u32, const opxy::u32*, opxy::u32) __asm__("sdk_sample_region_control");
 opxy::u32 sdk_sample_selected_engine() __asm__("sdk_sample_selected_engine");
 opxy::u32 sdk_sample_live_pitch_kind(opxy::u32) __asm__("sdk_sample_live_pitch_kind");
 opxy::u32 sdk_sample_octave_store(opxy::u32, opxy::i32) __asm__("sdk_sample_octave_store");
 opxy::u32 sdk_sample_key(opxy::u32, opxy::u32) __asm__("sdk_sample_key");
+opxy::u32 sdk_synth_turn(opxy::u32, opxy::u32, opxy::u32, opxy::u32) __asm__("sdk_synth_turn");
 }
 volatile opxy::i32 sdk_sample_drum_octaves[8];
 
@@ -24,6 +27,8 @@ using opxy::i32;
 using opxy::u32;
 using namespace opxy::platform;
 const u32 kNotOwned = 0xffffffffu;
+// The project object stock passes to its parameter editor (8c0b210a, 8c0a5018).
+const u32 kProject = 0x86bd9f38;
 // Stock region control: mutation for its own controls, then publication.
 u32 region_control(u32 key, u32 control, const u32* event, u32 fine) {
     return stock<u32(u32, u32, const u32*, u32)>(0x8d4dcab8)(key, control, event, fine);
@@ -41,10 +46,26 @@ void publish_octave(u32 track, i32 octave) {
 }
 }
 
-// 8c0b1e76 and the recorder's target selection, release and save completion
-// ask which engine the track uses. Owned sample engines borrow the
-// multisampler's branch; the track keeps its real engine.
+// The recorder's target selection, release and save completion ask which
+// engine the track uses. Owned sample engines borrow the multisampler's branch,
+// or the sampler's with singleSample; the track keeps its real engine.
 u32 sdk_sample_ui_engine(u32 track) { return sdk_sample_alias(track_engine(track)); }
+
+// 8c0b1e76: the instrument controller's encoder turn asks the same question to
+// choose between the sample-region controls and the engine parameters. A
+// machine drawing its own page keeps its real engine, so its encoders edit the
+// parameter vector through sdk_synth_turn, with alternates and fine turns.
+u32 sdk_sample_controller_engine(u32 track) {
+    const u32 id = track_engine(track);
+    return own_sample_page(id) ? id : sdk_sample_alias(id);
+}
+
+// 8d5ab274: the parameter editor must store drawing-page controls in the
+// engine parameter vector, not stock sample-region fields. Other callers of
+// the sample predicate retain their assignment/recording behavior.
+u32 sdk_sample_parameter_kind(u32 engine) {
+    return own_sample_page(engine) ? 0 : stock<u32(u32)>(0x8d5b5b38)(engine);
+}
 
 // 8d58d9ca: after stock clamps the octave, mirror its stored value immediately.
 // SDK IDs use stock's single-octave keyboard spacing. No engine/project getter:
@@ -73,6 +94,7 @@ u32 sdk_sample_key(u32 track, u32 key) {
 // parameter paths unchanged; a conflicting/unowned registration stays stock.
 u32 sdk_sample_live_pitch_kind(u32 id) {
     if (drum_controls(id)) return 1;
+    if (own_sample_page(id)) return 0;  // parameter zero is an ordinary control
     return stock<u32(u32)>(0x8d5b5b68)(id);
 }
 
@@ -83,6 +105,9 @@ u32 sdk_sample_live_pitch_kind(u32 id) {
 u32 sdk_sample_press_engine_owned(u32 track, u32 button) {
     if (track >= kTracks) return kNoEngine;
     const u32 id = track_engine(track);
+    // On an own page the click reaches sdk_synth_press, which selects the
+    // position's alternate; stock's sample mode cycle must not run.
+    if (own_sample_page(id)) return id;
     if (!pad_settings(id)) return sdk_sample_alias(id);
     const bool shifted = shift_held();
     if (drum_controls(id) && (shifted ? button == 5 || button == 6 : button == 4 || button == 7)) {
@@ -101,6 +126,10 @@ u32 sdk_sample_press_engine_owned(u32 track, u32 button) {
 u32 sdk_sample_region_control(u32 key, u32 control, const u32* event, u32 fine) {
     const u32 track = byte(kSelectedTrack);
     const u32 id = track < kTracks ? track_engine(track) : kNoEngine;
+    // A machine drawing its own page has no sample-region controls: its
+    // encoders (0..3, Shift row 4..7) edit the parameter vector exactly as the
+    // instrument controller's own path does, alternates and fine turns included.
+    if (own_sample_page(id)) return sdk_synth_turn(kProject, track, control, static_cast<u32>(reinterpret_cast<Address>(event)));
     if ((control == 5 || control == 6) && pad_settings(id) && !drum_controls(id)) return 0;
     if ((control <= 3 || control == 5 || control == 6) && drum_controls(id)) {
         // Middle encoders edit the outer markers through stock's normalizer.

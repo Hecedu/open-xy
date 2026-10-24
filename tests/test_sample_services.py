@@ -40,6 +40,7 @@ class SampleServices(unittest.TestCase):
                 generate_sample_callbacks(folder, [probe])
                 # Exercise the real tempo readers and assignment bridge with
                 # host addresses standing in for stock functions and globals.
+            if name in ('sample_callbacks', 'sample_routing'):
                 stock = (ROOT / 'sdk/platform/opxy-1.2.0/stock.hpp').read_text()
                 stock = stock.replace('typedef __UINTPTR_TYPE__ Address;',
                                       'typedef __UINTPTR_TYPE__ Address;\nAddress host_stock_address(Address);')
@@ -47,6 +48,10 @@ class SampleServices(unittest.TestCase):
                     stock = stock.replace('reinterpret_cast<' + pointer + '>(address)',
                                           'reinterpret_cast<' + pointer + '>(host_stock_address(address))')
                 (Path(folder) / 'stock.hpp').write_text(stock)
+            if name == 'sample_routing':
+                # The production bridge, with only stock address resolution replaced.
+                for unit in ('drum_controls_stock.cpp', 'sample_machines.cpp'):
+                    (Path(folder) / unit).write_text((ROOT / 'sdk/platform/opxy-1.2.0' / unit).read_text())
             if name == 'screen_order':
                 generate_screen_order(folder)
             if name == 'startup':
@@ -72,6 +77,9 @@ class SampleServices(unittest.TestCase):
 
     def test_callbacks_work_for_another_engine_and_preserve_stock_fields(self):
         self.run_fixture('sample_callbacks', ('sdk/platform/opxy-1.2.0/sample_machines.cpp',))
+
+    def test_sample_page_and_assignment_routes_preserve_unowned_stock_paths(self):
+        self.run_fixture('sample_routing')
 
     def test_owned_primary_screen_precedes_stock_overlays(self):
         self.run_fixture('screen_order')

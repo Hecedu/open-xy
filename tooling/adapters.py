@@ -244,7 +244,7 @@ def sample_callbacks(m):
 def generate_sample_voice(directory, m):
     resources = m.definition['resources']
     values = dict(PREFIX=m.prefix, NAMESPACE=m.definition['id'], NAME=m.native_name,
-                  LABELS=stock_labels(m), CAPACITY=resources['voiceCapacity'],
+                  LABELS=stock_labels(m), CAPACITY=resources['voiceCapacity'], OWN_SCREEN=int(m.display != 'stock'),
                   ANALYSIS=resources.get('sampleAnalysis', 0), STEREO=resources.get('stereoOutput', 0),
                   CHOKE=resources.get('chokeSameKey', 0), DRUM_KEYS=int(m.identity['page'] == 7),
                   PAD_SETTINGS=resources.get('padSettings', 0), DRUM_CONTROLS=resources.get('drumControls', 0))
@@ -259,9 +259,9 @@ def generate_sample_callbacks(directory, machines):
             continue
         p, resources = m.prefix, m.definition['resources']
         declarations.append(f'int {p}_ready() __asm__("{p}_ready");')
-        # The engine ID is an absolute symbol the linker supplies; the stock page is the machine's own.
+        # IDs are link-time symbols. Routing stores only page behavior: stock 2/7 or drawing 1.
         declarations.append(f'extern const char {p}_engine_id[] __asm__("{p}_engine_id");')
-        fields = [p + '_engine_id', str(m.identity['page']), p + '_ready']
+        fields = [p + '_engine_id', str(1 if m.display != 'stock' else m.identity['page']), p + '_ready']
         for flag, entries in SAMPLE_SERVICES:
             declared = bool(resources.get(flag, 0))
             if flag == 'sampleAnalysis':
@@ -270,6 +270,7 @@ def generate_sample_callbacks(directory, machines):
                 if declared:
                     declarations.append(f'{result} {p}{suffix}({arguments}) __asm__("{p}{suffix}");')
                 fields.append(p + suffix if declared else 'nullptr')
+        fields.append(str(int(bool(resources.get('singleSample', 0)))))
         rows.append('    {' + ', '.join(fields) + '},')
     return expand('sample_callbacks.cpp.in', dict(CALLBACK_DECLS='\n'.join(declarations), MACHINES='\n'.join(rows)),
                   Path(directory) / 'sample_callbacks.cpp')
@@ -293,7 +294,7 @@ def generate_synth_controls(directory, machines):
     """Synth ownership, alternate selection and continuous fine controls."""
     declarations, rows, formatters = [], [], []
     for m in machines:
-        if m.kind not in ('synth', 'effect'):
+        if m.kind not in ('synth', 'effect') and m.display == 'stock':
             continue
         effect = m.kind == 'effect'
         following = (not effect and control_cycles(m.definition)) or list(range(8))
