@@ -33,6 +33,9 @@ from .startup import generate as generate_startup
 
 LINKER = 'linker/opxy-1.2.0.ld'
 TARGET = 'opxy-1.2.0'
+# The stock instrument catalog every build extends, kept in the repository for
+# development: the builder distributes it too. Firmware always comes from the device.
+STOCK_CONTENT = ROOT / 'profiles/opxy-1.2.0/content'
 DEFINITIONS = dict(stock_catalog_insert=0x8d5bbaa0, stock_gui_role=0x8d5c200c, stock_sample_classify_tail=0x8d5b5b3e,
                    stock_sample_key_tail=0x8d5878ac)
 TEMPLATES = 'sdk/platform/opxy-1.2.0/'
@@ -233,8 +236,9 @@ def object_services(machines, profile=None):
             if m is None and step in UNIT_SERVICES}
 
 
-def compile_collection(directory, toolchain, compiler, profile, machines, definitions):
-    """Compile and link every machine; return the module bytes, report and patched profile."""
+def compile_collection(directory, toolchain, compiler, profile, machines, definitions, version):
+    """Compile and link every machine, labelled with the release version; return the
+    module bytes, report and patched profile."""
     directory = Path(directory)
     for m in machines:
         if m.display != 'stock':
@@ -272,6 +276,8 @@ def compile_collection(directory, toolchain, compiler, profile, machines, defini
                 return assemble_unit(ROOT / RUNTIME_ASM, obj)
             if step == 'memory':
                 return cxx(RUNTIME_CXX, obj)
+            if step == 'startup_label':
+                return assemble_unit(startup_label.generate(folder, version), obj)
             if step == 'startup':
                 prefixes = [x.prefix for x in by_kind(machines, 'synth', 'sample')]
                 return cxx(str(generate_startup(folder, prefixes, [x.prefix for x in effects],
@@ -635,6 +641,11 @@ def package_collection(package):
     return entries
 
 
+def package_version(package):
+    """The release version a package was built as, as its manifest records it."""
+    return startup_label.checked(document(Path(package) / 'manifest.json').get('version', startup_label.UNVERSIONED))
+
+
 def package_layout(package):
     """The layout a package's machines were numbered from, as its manifest records it."""
     layout = document(Path(package) / 'manifest.json').get('layout')
@@ -657,7 +668,7 @@ def verification(stock, catalog, package, toolchain, compiler, *, require_record
     with tempfile.TemporaryDirectory(prefix='opxy-verify-') as temporary:
         temporary = Path(temporary)
         module, report, patch_profile = compile_collection(temporary, toolchain, compiler, profile, machines,
-                                                           definitions)
+                                                           definitions, package_version(package))
         expected_assets = prepare_assets(catalog, profile, machines)
         expected_assets['os.ldr'] = assemble(stock, module, patch_profile, profile, len(profile['patches']),
                                                set(report['services']))
@@ -697,8 +708,9 @@ def build(out, toolchain, compiler, stock_os, stock_content, entries=None, layou
     output = fresh_output(out)
     analysis = output / 'analysis'
     analysis.mkdir()
+    version = startup_label.release_version()
     module, report, patch_profile = compile_collection(analysis, toolchain, compiler, profile, machines,
-                                                       definitions)
+                                                       definitions, version)
     prepared['os.ldr'] = assemble(stock, module, patch_profile, profile, len(profile['patches']),
                                   set(report['services']))
     for name, data in prepared.items():
@@ -706,7 +718,7 @@ def build(out, toolchain, compiler, stock_os, stock_content, entries=None, layou
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
     tracked = ['candidate/' + name for name in prepared] + ['analysis/module.bin', 'analysis/module.elf'] + ANALYSIS
-    save_json(output / 'manifest.json', dict(schema=1, target=TARGET, collection=entries,
+    save_json(output / 'manifest.json', dict(schema=1, target=TARGET, version=version, collection=entries,
                                              **({'layout': layout} if layout else {}),
                                              files={name: sha(read(output / name)) for name in tracked}))
     save_json(output / 'layout.json', layout_document(numbers_after(layout, machines)))
@@ -744,7 +756,8 @@ def main(argv=None, command=None):
         parser.add_argument('--out', type=Path, required=True)
     if command != 'compile':
         parser.add_argument('--stock-os', type=Path, required=True)
-        parser.add_argument('--stock-content', type=Path, required=True)
+        parser.add_argument('--stock-content', type=Path, default=STOCK_CONTENT,
+                            help="the folder holding op1_factory.json (default: this repository's copy)")
     if command != 'verify':  # a package records its own collection
         add_collection_arguments(parser)
         parser.add_argument('--layout', type=Path,
@@ -768,7 +781,8 @@ def main(argv=None, command=None):
         if command == 'compile':
             require(not any(m.contains(args.out) for m in machines), 'Keep build output outside every machine folder')
             output = fresh_output(args.out)
-            _module, report, _patches = compile_collection(output, *tools, profile, machines, definitions)
+            _module, report, _patches = compile_collection(output, *tools, profile, machines, definitions,
+                                                           startup_label.release_version())
             print(json.dumps(report['sizes'], indent=2))
             print('Memory ' + memory_summary(report['memory'], report['sizes']['allocated_span_bytes'],
                                             report['module_bytes']))

@@ -24,7 +24,7 @@ function machine(id, engine, page, origin='bundled') { return {id, prefix:id, ki
 const profileBytes = readFileSync(new URL('../profiles/opxy-1.2.0.json',import.meta.url));
 function fixture() {
   const object = {...readObject(elf()), name:'a.o',owner:'a'};
-  return {profile:JSON.parse(profileBytes),definitions:{},fixed:{a:{engine:34,page:82}},machines:[machine('a',34,82)],objects:[object]};
+  return {version:'0.0.2',profile:JSON.parse(profileBytes),definitions:{},fixed:{a:{engine:34,page:82}},machines:[machine('a',34,82)],objects:[object]};
 }
 test('ELF parsing reads symbols and little-endian instructions', () => {
   const o = readObject(elf()); assert.equal(o.symbols[1].name,'entry'); assert.equal(o.symbols[1].size,4);
@@ -163,6 +163,10 @@ test('curated profile and object authentication reject modified input', async ()
   delete k.stockCatalog;
   await assert.rejects(openKit(k),/Missing bundled stock menu/);
   k.stockCatalog='';
+  for (const version of [undefined, '1.0', 'v0.0.2']) {
+    k.version=version; await assert.rejects(openKit(k),/kit version/);
+  }
+  k.version='0.0.2';
   k.objects[0].sha256='0'.repeat(64); await assert.rejects(openKit(k),/hash mismatch/);
   k.profile.patches[0].after='0000000000000000'; await assert.rejects(openKit(k),/reviewed profile/);
 });

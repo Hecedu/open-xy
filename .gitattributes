@@ -3,6 +3,7 @@
 linker/*.ld -text whitespace=cr-at-eol
 # Qualified profiles and descriptors retain their exact byte hashes.
 profiles/*.json -text whitespace=cr-at-eol
+profiles/*/content/*.json -text whitespace=cr-at-eol
 machines/*/machine.json -text whitespace=cr-at-eol
 machines/*/definition.json -text whitespace=cr-at-eol
 # Unified diffs require a space prefix on empty context lines.

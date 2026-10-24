@@ -41,7 +41,7 @@ Start with [Your first machine](docs/first-machine.md): check the prerequisites,
 create a custom C++ machine, play it in the browser and make an audible edit.
 To keep a machine in a repository of your own and submit it to the builder,
 start from the [machine template](https://github.com/etcetc000/open-xy-machine-template);
-[Pluck](https://github.com/etcetc000/open-xy-pluck) is one such machine.
+[Karplus](https://github.com/etcetc000/open-xy-karplus) is one such machine.
 
 A machine is a folder of source: `machine.json`, which declares its kind and
 the stock numbers it asks for, controls in `definition.json`, and C++ for its kind: a synth's
@@ -81,6 +81,8 @@ Timestretch, including its Capicola-derived analysis, is AGPL-3.0; see its
 [source and license notices](machines/timestretch/vendor/README.md). Shared
 SDK code carries no copyleft code, but firmware and builder kits that include
 Timestretch, as the default collection does, are distributed under the
-AGPL-3.0. Stock firmware and stock artwork are never included; they come from
-the user's own device. The [toolchain](docs/toolchain.md) release ships its
-GPL sources.
+AGPL-3.0. No firmware is included: all firmware comes from the user's own
+device. The one stock file in this repository is the instrument catalog every
+build extends, [`op1_factory.json`](profiles/opxy-1.2.0/content/op1_factory.json),
+kept for development; the builder distributes it too. The
+[toolchain](docs/toolchain.md) release ships its GPL sources.

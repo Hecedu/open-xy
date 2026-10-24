@@ -17,6 +17,7 @@ import subprocess
 import sys
 
 from .formats import require
+from .native import STOCK_CONTENT
 from .pipeline import NO_WINDOW, ROOT, fresh_output
 
 # The site each deployment publishes, and the branch it comes from (docs/builder.md).
@@ -54,7 +55,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(prog='sdk.py release', description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--stock-os', type=Path, required=True)
-    parser.add_argument('--stock-content', type=Path, required=True)
+    parser.add_argument('--stock-content', type=Path, default=STOCK_CONTENT,
+                        help="the folder holding op1_factory.json (default: this repository's copy)")
     parser.add_argument('--out', type=Path, required=True, help='new folder outside every checkout: kit and site')
     parser.add_argument('--deploy', choices=sorted(TARGETS), help='publish the site to this Cloudflare environment')
     parser.add_argument('--dry-run', action='store_true', help='build and check the deployment without publishing')
