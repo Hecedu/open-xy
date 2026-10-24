@@ -8,7 +8,7 @@ namespace opxy { namespace platform {
 class RecordTap {
 public:
     using Time = __UINT64_TYPE__;
-    RecordTap() : pressed_at_(0), released_at_(0), down_(false), clean_(false),
+    constexpr RecordTap() : pressed_at_(0), released_at_(0), down_(false), clean_(false),
                   pending_(false), second_(false) {}
 
     void press(Time microseconds, bool unmodified) {

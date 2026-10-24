@@ -30,7 +30,8 @@ public:
     static const u32 capacity = 120;
     static const u32 held_capacity = 20;
 
-    RecordingHistory() : context_{}, count_(0), held_(0), span_(0), playing_(false) {}
+    constexpr RecordingHistory() : context_{}, entries_{}, count_(0), held_(0),
+                                   span_(0), playing_(false) {}
 
     // length is in stock pattern ticks, not bars or elapsed milliseconds.
     // Stop freezes the partial pass; a subsequent start begins a new take.
