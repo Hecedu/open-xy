@@ -56,9 +56,22 @@ int main() {
     CHECK(h.note_on(0, 61, 91)); h.advance(399 * 256); h.note_off(61);
     CHECK(h.snapshot(notes, 120) == 2);
     CHECK(notes[0].position == 400 && notes[1].position == 0);
-    h.advance(256); CHECK(h.snapshot(notes, 120) == 1 && notes[0].pitch == 61);
+    h.advance(256); CHECK(h.snapshot(notes, 120) == 2); // One loop is not a hard cutoff.
+    h.advance(240 * 256); CHECK(h.snapshot(notes, 120) == 1 && notes[0].pitch == 61);
     h.advance(80 * 256); CHECK(h.size() == 0); // Silence ages notes out.
     CHECK(h.note_on(0, 62, 92)); h.advance(0xffffffffu); CHECK(h.size() == 0);
+
+    // A slightly early onset survives a capture at the following downbeat.
+    c = context(); h.sync(c, true);
+    CHECK(h.note_on(-12, 65, 97)); h.advance(40 * 256); h.note_off(65);
+    h.advance((c.length - 28) * 256); // Age = one loop plus twelve ticks.
+    CHECK(h.snapshot(notes, 120) == 1);
+    CHECK(notes[0].position == -12 && notes[0].length == 40 && notes[0].velocity == 97);
+    h.advance(227 * 256); CHECK(h.size() == 1);
+    h.advance(256); CHECK(h.size() == 0); // Tolerance is bounded, even in silence.
+    CHECK(h.note_on(0, 65, 97)); h.advance((c.length + 100) * 256);
+    CHECK(h.snapshot(notes, 120) == 1 && notes[0].length == c.length);
+    h.advance(140 * 256); CHECK(h.size() == 0);
 
     // A full history retains the most recent bounded set; releases of evicted
     // notes cannot damage later notes. Repeated passes remain bounded.

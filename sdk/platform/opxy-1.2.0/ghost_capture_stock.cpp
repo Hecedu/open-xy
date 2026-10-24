@@ -100,7 +100,7 @@ u32 capture_write(u32 track, const RecordedNote* notes, u32 count) {
     return written;
 }
 void capture_notify() {
-    stock<void(const char*, u32, u32, u32)>(0x8d548580)("Captured", 1, 0, 0x3f000000u);
+    stock<void(const char*, u32, u32, u32)>(0x8d548580)("captured", 1, 0, 0x3f000000u);
 }
 }}
 

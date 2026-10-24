@@ -4,31 +4,31 @@ using opxy::platform::RecordTap;
 
 int main() {
     RecordTap tap;
-    tap.press(100, true);
+    CHECK(tap.press(100, true));
     CHECK(!tap.release(100100));
-    tap.press(200100, true);
+    CHECK(!tap.press(200100, true)); // The second tap must retain the first snapshot.
     CHECK(tap.release(300100));
     CHECK(!tap.release(300101)); // No repeated capture on duplicate release.
     tap.press(400100, true);
     CHECK(!tap.release(500100)); // A triple tap consumes just one pair.
-    tap.press(850101, true);
+    CHECK(tap.press(850101, true)); // Timeout replaces a stale snapshot.
     CHECK(!tap.release(900101)); // Gap is too long.
     tap.press(950101, true);
     CHECK(!tap.release(1200102)); // A hold is not a tap, even after a short tap.
     tap.press(1250102, true);
     CHECK(!tap.release(1300102));
-    tap.press(1350102, false);
+    CHECK(!tap.press(1350102, false));
     CHECK(!tap.release(1400102)); // A modified press cancels the pair.
     tap.press(1450102, true);
     CHECK(!tap.release(1500102));
     tap.cancel();
-    tap.press(1550102, true);
+    CHECK(tap.press(1550102, true));
     CHECK(!tap.release(1600102)); // Another control between taps cancels.
     tap.press(1650102, true);
     tap.cancel();
     CHECK(!tap.release(1700102)); // A Record chord cancels while held.
     tap.press(1750102, true);
-    tap.press(1750202, true);
+    CHECK(!tap.press(1750202, true));
     CHECK(!tap.release(1800102)); // Key repeat cancels instead of double-tapping.
 
     // Keep the full microsecond clock: its low word wraps about every 72 minutes.

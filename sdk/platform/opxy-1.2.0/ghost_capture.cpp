@@ -8,6 +8,7 @@ RecordTap tap;
 RecordingContext context;
 bool running;
 RecordedNote snapshot[RecordingHistory::capacity];
+u32 snapshot_count;
 }
 
 void capture_sync() {
@@ -46,11 +47,14 @@ void capture_control(u32 key, bool pressed, bool accepted, bool unmodified,
                      RecordTap::Time time) {
     capture_sync();
     if (key != 50 || !accepted || !context.eligible) { tap.cancel(); return; }
-    if (pressed) { tap.press(time, unmodified); return; }
+    if (pressed) {
+        if (tap.press(time, unmodified))
+            snapshot_count = history.snapshot(snapshot, RecordingHistory::capacity);
+        return;
+    }
     if (!tap.release(time)) return;
-    const u32 count = history.snapshot(snapshot, RecordingHistory::capacity);
-    if (!count) return;
-    if (capture_write(context.track, snapshot, count)) {
+    if (!snapshot_count) return;
+    if (capture_write(context.track, snapshot, snapshot_count)) {
         history.clear();
         capture_notify();
     }

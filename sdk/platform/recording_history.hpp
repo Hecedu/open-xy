@@ -29,6 +29,9 @@ public:
     // Stock's ordinary note container and active recording list limits.
     static const u32 capacity = 120;
     static const u32 held_capacity = 20;
+    // Half of a stock 480-tick step, matching its pickup around pattern zero.
+    // This extends retention only; recorded positions are never shifted.
+    static const u32 pickup_ticks = 240;
 
     constexpr RecordingHistory() : context_{}, entries_{}, count_(0), held_(0),
                                    span_(0), playing_(false) {}
@@ -46,7 +49,7 @@ public:
             held_ = 0;
         }
         context_ = context;
-        span_ = valid ? context.length << 8 : 0;
+        span_ = valid ? (context.length + pickup_ticks) << 8 : 0;
         playing_ = running;
     }
 
@@ -65,7 +68,9 @@ public:
             }
             entry.age += delta;
             if (entry.held) {
-                entry.duration += delta;
+                // Pickup retention must not extend a held note past one loop.
+                const u32 maximum = context_.length << 8;
+                entry.duration += delta < maximum - entry.duration ? delta : maximum - entry.duration;
                 entry.note.length = entry.duration >> 8;
             }
             entries_[kept++] = entry;

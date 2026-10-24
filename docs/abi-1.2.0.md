@@ -66,6 +66,11 @@ not. Stock input arguments and normal recording actions are forwarded unchanged.
 
 History uses the same position getter, pickup convention and scaled Q8 duration
 deltas as stock recording. Pattern quantization remains stock playback behavior.
+The history window includes 240 extra pattern ticks (half a stock step) at its
+oldest edge; this does not alter note positions, quantization or the one-loop
+maximum held-note duration. The first clean Record press snapshots the take.
+Completing the second tap commits that snapshot, so gesture time cannot expire
+its first note. Interrupted/expired pairs never commit the saved snapshot.
 Insertion calls the stock note container with its scale-dependent collision
 radius and 120-note capacity, after resetting and taking one stock undo snapshot.
 It publishes the pattern once, without calling the audible note dispatcher or

@@ -74,7 +74,7 @@ __UINT64_TYPE__ insert(void* c, const PatternNote* note, i32 radius) {
 }
 void publish(u32 t) { failed |= t != selected; ++publishes; }
 void popup(const char* text,u32 a,u32 b,u32 duration) {
-    const char expected[]="Captured";
+    const char expected[]="captured";
     for (u32 i=0;i<sizeof(expected);++i) failed |= text[i]!=expected[i];
     failed |= a!=1 || b || duration!=0x3f000000u; ++popups;
 }
@@ -199,6 +199,24 @@ int main() {
     reject_note=true; note(); reject_note=false;
     step_entry=true; note(); step_entry=false;
     stop(); double_tap(); CHECK(writes==4);
+
+    // An early first note survives the loop cutoff AND the time spent tapping.
+    // The actual service must commit the first-press snapshot after its live
+    // history has aged out, preserving original position/duration/velocity.
+    scale=3; play(); position=-12; note(65,97); advance(40); release(65);
+    advance(track_length*480-28);
+    key(50,true); advance(300); key(50,false); key(50,true); key(50,false);
+    CHECK(writes==5 && popups==5 && inserted[4].position==-12);
+    CHECK(inserted[4].length==40 && inserted[4].pitch==65 && inserted[4].velocity==97);
+    // An expired pair must take a fresh snapshot, not reuse the earlier take.
+    position=20; note(66); advance(20); release(66);
+    key(50,true); key(50,false); advance(track_length*480+240);
+    key(50,true,350001); key(50,false); key(50,true); key(50,false);
+    CHECK(writes==5);
+    // Context changes invalidate a snapshot already anchored by the first tap.
+    position=0; note(); advance(30); release(); key(50,true); key(50,false);
+    ++quantization; sdk_capture_loop(0x860cf9c8,17);
+    key(50,true); key(50,false); key(50,true); key(50,false); CHECK(writes==5);
     CHECK(!failed);
     return 0;
 }
