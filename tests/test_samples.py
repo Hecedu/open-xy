@@ -56,8 +56,8 @@ class Generation(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             text = adapters.generate_sample_callbacks(directory, [first, second, machine('fm2op')]).read_text()
         # Engine IDs are symbols the linker supplies; each machine keeps its stock page.
-        self.assertIn('{timestretch_engine_id, 7, timestretch_ready, ', text)
-        self.assertIn('{slicer_engine_id, 2, slicer_ready, ', text)
+        self.assertIn('{timestretch_engine_id, SamplePage::drums, timestretch_ready, ', text)
+        self.assertIn('{slicer_engine_id, SamplePage::sampler, slicer_ready, ', text)
         self.assertNotIn('fm2op', text)
 
     def test_empty_collection_dispatch_remains_stock(self):

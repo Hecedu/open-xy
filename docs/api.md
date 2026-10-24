@@ -235,6 +235,12 @@ silence. `start` runs on each note. Never retain a block or its buffers.
 
 ### Services
 
+Sample views, voice lifecycle, regions and prepared analysis are shared sample
+services. `padSettings` and `drumControls` adapt the stock drum page for instruments
+that retain its pad workflow; a custom `display` instead uses the same drawing
+and parameter-control interface as synth instruments. Playback algorithms stay
+in the machine.
+
 Each service is an optional entry in `definition.json` `resources`; omitted
 means 0. Callbacks are functions in the machine's namespace.
 

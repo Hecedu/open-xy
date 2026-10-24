@@ -181,7 +181,7 @@ assignment and recorder queries to the sampler (2), assigning one sample across
 the keyboard. Drawing pages keep the real engine in the instrument controller
 and return false only at the parameter editor's sample query (`0x8d5ab274`),
 so turns edit the eight-word engine vector. Both are C ABI call replacements
-in `drum_controls_stock.cpp`; the global sample predicate and its assembly
+in `sample_controls_stock.cpp`; the global sample predicate and its assembly
 stub stay unchanged. The table stores page behavior, not a relocated page
 number, so layout reassignment changes no object bytes. Track and voice IDs stay unchanged. Stock,
 absent and conflicting registrations follow the original paths. The first

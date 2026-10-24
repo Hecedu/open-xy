@@ -74,7 +74,7 @@ class SamplePages(unittest.TestCase):
             a = adapters.generate_sample_callbacks(first, machines).read_text()
             b = adapters.generate_sample_callbacks(second, assigned).read_text()
             self.assertEqual(a, b)  # Screen numbers are link-time identities, not baked into routing.
-            self.assertIn('{sliceview_engine_id, 1, sliceview_ready,', b)
+            self.assertIn('{sliceview_engine_id, SamplePage::drawing, sliceview_ready,', b)
             for m in assigned:
                 text = adapters.generate_registration(first, m).read_text()
                 self.assertIn('sdk_engine_ready(&record, &screen)', text)

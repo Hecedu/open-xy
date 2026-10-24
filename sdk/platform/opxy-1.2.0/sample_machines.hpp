@@ -4,13 +4,16 @@
 #include <opxy/sample_engine.hpp>
 
 namespace opxy { namespace platform {
+// Routing behavior, independent of the page number allocated at link time.
+enum class SamplePage : u32 { none = 0, drawing = 1, sampler = 2, drums = 7 };
+
 // One sample machine: its identity, readiness check and declared callbacks.
 // A callback a machine does not declare is null. In a browser kit, an
 // unselected machine's symbols resolve to a function returning 0, so `ready`
 // declines and nothing else is called.
 struct SampleMachine {
     const char* engine_id;  // absolute symbol: the engine ID, supplied at link time
-    u32 page;               // page behavior: 2 sampler, 7 drums, 1 drawing; never a relocated page ID
+    SamplePage page;        // stock workflow or owned drawing controls
     int (*ready)();
     // padSettings
     PadSettings (*defaults)();
@@ -36,17 +39,17 @@ extern const opxy::u32 sdk_sample_machine_count __asm__("sdk_sample_machine_coun
 // ours; null for stock, absent and conflicting registrations.
 const opxy::platform::SampleMachine* sdk_sample_machine(opxy::u32 engine) __asm__("sdk_sample_machine");
 // Each track's keyboard octave as last stored or looked up on the GUI
-// (drum_controls_stock.cpp); audio maps drum notes with it instead of calling
+// (sample_controls_stock.cpp); audio maps drum notes with it instead of calling
 // GUI project getters.
 extern volatile opxy::i32 sdk_sample_drum_octaves[8] __asm__("sdk_sample_drum_octaves");
 }
 
 namespace opxy { namespace platform {
-inline u32 sample_page(u32 engine) {
+inline SamplePage sample_page(u32 engine) {
     const SampleMachine* m = sdk_sample_machine(engine);
-    return m ? m->page : 0;
+    return m ? m->page : SamplePage::none;
 }
-inline bool own_sample_page(u32 engine) { return sample_page(engine) == 1; }
+inline bool own_sample_page(u32 engine) { return sample_page(engine) == SamplePage::drawing; }
 inline bool pad_settings(u32 engine) {
     const SampleMachine* m = sdk_sample_machine(engine);
     return m && m->assign;

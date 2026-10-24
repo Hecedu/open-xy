@@ -2,17 +2,17 @@
 #include <cstdlib>
 #include <initializer_list>
 static void host_barrier() {}
-#include <drum_controls_stock.cpp>
+#include <sample_controls_stock.cpp>
 #include <sample_machines.cpp>
 using namespace opxy::platform;
 static void check(bool ok) { if (!ok) std::abort(); }
 static bool ownership = true;
 static int ready() { return ownership ? 1 : 0; }
 const SampleMachine sdk_sample_machines[] = {
-    {reinterpret_cast<const char*>(46), 1, ready, nullptr, nullptr, nullptr, nullptr, 0, nullptr, nullptr, nullptr, nullptr, 1},
-    {reinterpret_cast<const char*>(47), 1, ready, nullptr, nullptr, nullptr, nullptr, 0, nullptr, nullptr, nullptr, nullptr, 0},
-    {reinterpret_cast<const char*>(48), 2, ready, nullptr, nullptr, nullptr, nullptr, 0, nullptr, nullptr, nullptr, nullptr, 1},
-    {reinterpret_cast<const char*>(49), 7, ready, nullptr, nullptr, nullptr, nullptr, 0, nullptr, nullptr, nullptr, nullptr, 0}
+    {reinterpret_cast<const char*>(46), SamplePage::drawing, ready, nullptr, nullptr, nullptr, nullptr, 0, nullptr, nullptr, nullptr, nullptr, 1},
+    {reinterpret_cast<const char*>(47), SamplePage::drawing, ready, nullptr, nullptr, nullptr, nullptr, 0, nullptr, nullptr, nullptr, nullptr, 0},
+    {reinterpret_cast<const char*>(48), SamplePage::sampler, ready, nullptr, nullptr, nullptr, nullptr, 0, nullptr, nullptr, nullptr, nullptr, 1},
+    {reinterpret_cast<const char*>(49), SamplePage::drums, ready, nullptr, nullptr, nullptr, nullptr, 0, nullptr, nullptr, nullptr, nullptr, 0}
 };
 const opxy::u32 sdk_sample_machine_count = 4;
 static unsigned current_engine, selected_track_byte, predicates, turns, regions;

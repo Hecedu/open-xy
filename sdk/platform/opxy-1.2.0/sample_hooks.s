@@ -1,5 +1,5 @@
 /* Stock sample dispatch hooks whose register contract C++ cannot express. The
- * decisions are C++ (sample_machines.cpp, drum_controls_stock.cpp); these
+ * decisions are C++ (sample_machines.cpp, sample_controls_stock.cpp); these
  * stubs only save state, call it and replay or deliver what stock expects.
  */
 .include "sdk/platform/opxy-1.2.0/hook.inc"

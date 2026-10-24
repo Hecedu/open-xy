@@ -50,7 +50,7 @@ class SampleServices(unittest.TestCase):
                 (Path(folder) / 'stock.hpp').write_text(stock)
             if name == 'sample_routing':
                 # The production bridge, with only stock address resolution replaced.
-                for unit in ('drum_controls_stock.cpp', 'sample_machines.cpp'):
+                for unit in ('sample_controls_stock.cpp', 'sample_machines.cpp'):
                     (Path(folder) / unit).write_text((ROOT / 'sdk/platform/opxy-1.2.0' / unit).read_text())
             if name == 'screen_order':
                 generate_screen_order(folder)

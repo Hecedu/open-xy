@@ -259,9 +259,10 @@ def generate_sample_callbacks(directory, machines):
             continue
         p, resources = m.prefix, m.definition['resources']
         declarations.append(f'int {p}_ready() __asm__("{p}_ready");')
-        # IDs are link-time symbols. Routing stores only page behavior: stock 2/7 or drawing 1.
+        # IDs are link-time symbols. Routing stores a named workflow, never a relocated page ID.
         declarations.append(f'extern const char {p}_engine_id[] __asm__("{p}_engine_id");')
-        fields = [p + '_engine_id', str(1 if m.display != 'stock' else m.identity['page']), p + '_ready']
+        page = 'drawing' if m.display != 'stock' else {2: 'sampler', 7: 'drums'}[m.identity['page']]
+        fields = [p + '_engine_id', 'SamplePage::' + page, p + '_ready']
         for flag, entries in SAMPLE_SERVICES:
             declared = bool(resources.get(flag, 0))
             if flag == 'sampleAnalysis':
