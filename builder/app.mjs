@@ -117,16 +117,16 @@ async function acceptFirmware(file, isCurrent = () => true) {
   const current = ++ticket; invalidate();
   stock = null; ready();
   wizard.setFirmwareState('checking');
-  $('firmware-result').textContent = 'Verifying ' + file.name + 'â€¦';
+  $('firmware-result').textContent = 'Verifying ' + file.name + '…';
   try {
     const recovered = await Core.recoverFirmware(kit, await readBounded(file, 16 * 1024 ** 2), numbers);
     if (current !== ticket || !isCurrent()) return false;
     stock = recovered.stock;
     if (recovered.selected) {
       selected = recovered.selected; renderMachines(); recalculate();
-      $('firmware-result').textContent = 'âœ“ open-xy OS with ' +
+      $('firmware-result').textContent = '✓ open-xy OS with ' +
         kit.machines.filter(m => selected.includes(m.id)).map(m => m.name).join(' + ');
-    } else $('firmware-result').textContent = 'âœ“ OPâ€“XY OS 1.2.0 verified Â· ' + file.name;
+    } else $('firmware-result').textContent = '✓ OP–XY OS 1.2.0 verified · ' + file.name;
     wizard.setFirmwareState('loaded');
     $('files-title').focus();
     status(); ready();
@@ -160,13 +160,13 @@ async function inspect(id) {
   if (m.origin === 'catalog') {
     const link = node('a', Core.sourceName(m.source) + ' ' + m.source.tag);
     link.href = Core.sourceUrl(m.source); link.target = '_blank'; link.rel = 'noopener noreferrer';
-    $('detail-source').replaceChildren('Community machine by ' + m.source.maintainer + ' Â· ', link);
+    $('detail-source').replaceChildren('Community machine by ' + m.source.maintainer + ' · ', link);
   } else $('detail-source').textContent = m.origin === 'bundled' ? 'Bundled with Open-XY' : 'Your machine, from this kit';
   $('art-preview').replaceChildren();
   $('audition-controls').replaceChildren();
   stopAudio = () => {};
   if (m.preview) {
-    $('art-caption').textContent = 'Audition the sound and screen. The OPâ€“XYâ€™s own envelopes and effects arenâ€™t included.';
+    $('art-caption').textContent = 'Audition the sound and screen. The OP–XY’s own envelopes and effects aren’t included.';
   } else {
     $('art-preview').append(node('span', 'No browser preview for this machine yet.', 'art-placeholder'));
     $('art-caption').textContent = '';
@@ -200,7 +200,7 @@ async function inspect(id) {
       let serial = 0, previous = 0, handle, cancelled = false;
       // A small keyboard from middle C: a key plays its note while held. The preview plays
       // one note at a time, the newest held key; letting it go returns to the one before.
-      const names = ['C','Câ™¯','D','Dâ™¯','E','F','Fâ™¯','G','Gâ™¯','A','Aâ™¯','B'], held = [];
+      const names = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'], held = [];
       const keyboard = node('div', undefined, 'preview-keys');
       keyboard.id = 'preview-keys'; keyboard.setAttribute('role', 'group'); keyboard.setAttribute('aria-label', 'Preview keyboard');
       for (let note = 60; note <= 77; note++) {
@@ -333,7 +333,7 @@ function recalculate() {
   ready();
 }
 async function build() {
-  const ticket = revision; $('build').disabled = true; status('Linking and checking your buildâ€¦');
+  const ticket = revision; $('build').disabled = true; status('Linking and checking your build…');
   try {
     const selection = [...selected], result = Core.linkKit(kit, selection, numbers);
     const files = await Core.buildAssets(kit, selection, catalog, result.numbers);
@@ -387,7 +387,7 @@ $('save-layout').onclick = () => {
 };
 try {
   const data = $('kit-data').textContent.trim();
-  Core.requireThat(data, 'The machines couldnâ€™t load. Reload this page.');
+  Core.requireThat(data, 'The machines couldn’t load. Reload this page.');
   kit = await Core.openKit(JSON.parse(data));
   // A tap opens the memory breakdown on screens without hover.
   document.querySelector('.memory-bar').onclick = e => e.currentTarget.classList.toggle('open');
