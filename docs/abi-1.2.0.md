@@ -221,10 +221,15 @@ PCM object.
 
 The GUI-only `opxy::sample_display` service resolves the selected owned
 sample region and copies a fixed 96-bin overview, trim and advisory started
-voice count. The GUI never dereferences PCM or contributor voice state.
+note activity. The GUI never dereferences PCM or contributor voice state.
 Eight fixed request slots publish overviews with sequence checks; sample
-eviction invalidates them before stock frees the object. Audio publishes
-only each adapter slot's track token, clearing it on destruction or choke.
+eviction invalidates them before stock frees the object. Note activity uses
+stock's GUI gate getter (`0x8d5b5e88`), also used by the keyboard painter at
+`0x8d525dbc`. Note-on (`0x8d593b7c`) and note-off/all-off (`0x8d5937ea`,
+`0x8d59384c`) update these gates. This counts distinct gated notes, excluding
+release tails; audio-role adapter storage is not a GUI telemetry channel.
+The region-key bridge returns zero for `singleSample`, matching stock's
+sampler path at `0x8d5878f0`, so changing keys cannot select another region.
 
 Changed GUI requests coalesce onto stock's file queue (`0x8d4dd508`, also
 used by the sample manager at `0x8d5096e8` and `0x8d50bd6c`). The callback

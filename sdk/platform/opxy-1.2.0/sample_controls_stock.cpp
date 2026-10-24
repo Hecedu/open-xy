@@ -77,12 +77,16 @@ u32 sdk_sample_octave_store(u32 track, i32 octave) {
     return result;
 }
 
-// Stock's drum key lookup (through sample_hooks.s): an owned drum page maps
+// Stock's region key lookup (through sample_hooks.s): a single-sample track
+// always selects region zero, as stock engine 2 does at 8d5878f0. A drum page maps
 // the note to its canonical pad with the track octave; the GUI-side lookup has
 // a valid project context, so it also publishes the octave for audio. Returns
 // kNotOwned to let stock continue.
 u32 sdk_sample_key(u32 track, u32 key) {
-    if (sample_page(track_engine(track)) != SamplePage::drums) return kNotOwned;
+    const SampleMachine* machine = sdk_sample_machine(track_engine(track));
+    if (!machine) return kNotOwned;
+    if (machine->single) return 0;
+    if (machine->page != SamplePage::drums) return kNotOwned;
     const i32 octave = stock<i32(u32)>(0x8d58da64)(track);
     publish_octave(track, octave);
     return stock<u32(u32, i32)>(0x8d5b6800)(key, octave) + 53;

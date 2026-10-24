@@ -45,6 +45,13 @@ int main() {
             check(sdk_sample_region_control(60, slot, nullptr, 0) == 73);
     }
     check(turns == 16 && !regions);
+    // The same region must survive every played key on single-sample tracks.
+    for (unsigned id : {46u, 48u}) {
+        current_engine = id;
+        for (unsigned key = 0; key < 128; ++key) check(sdk_sample_key(0, key) == 0);
+    }
+    current_engine = 47;
+    check(sdk_sample_key(0, 60) == 0xffffffffu); // nearest-region mapping stays stock
     for (unsigned id : {48u, 49u}) {
         current_engine = id;
         check(sdk_sample_ui_engine(0) == (id == 48 ? 2u : 30u));
@@ -56,6 +63,7 @@ int main() {
     for (unsigned id : {2u, 18u, 46u, 47u, 48u, 49u, 62u}) {
         current_engine = id;
         check(sdk_sample_alias(id) == id && sdk_sample_controller_engine(0) == id);
+        check(sdk_sample_key(0, 60) == 0xffffffffu);
         check(sdk_sample_note_route(id) == 0 && !own_sample_page(id));
         const unsigned calls = predicates;
         check(sdk_sample_parameter_kind(id) == (id == 2 ? 1u : 0u) && predicates == calls + 1);
