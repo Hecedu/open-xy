@@ -117,16 +117,16 @@ async function acceptFirmware(file, isCurrent = () => true) {
   const current = ++ticket; invalidate();
   stock = null; ready();
   wizard.setFirmwareState('checking');
-  $('firmware-result').textContent = 'Verifying ' + file.name + '…';
+  $('firmware-result').textContent = 'Verifying ' + file.name + 'â€¦';
   try {
     const recovered = await Core.recoverFirmware(kit, await readBounded(file, 16 * 1024 ** 2), numbers);
     if (current !== ticket || !isCurrent()) return false;
     stock = recovered.stock;
     if (recovered.selected) {
       selected = recovered.selected; renderMachines(); recalculate();
-      $('firmware-result').textContent = '✓ open-xy OS with ' +
+      $('firmware-result').textContent = 'âœ“ open-xy OS with ' +
         kit.machines.filter(m => selected.includes(m.id)).map(m => m.name).join(' + ');
-    } else $('firmware-result').textContent = '✓ OP–XY OS 1.2.0 verified · ' + file.name;
+    } else $('firmware-result').textContent = 'âœ“ OPâ€“XY OS 1.2.0 verified Â· ' + file.name;
     wizard.setFirmwareState('loaded');
     $('files-title').focus();
     status(); ready();
@@ -160,13 +160,13 @@ async function inspect(id) {
   if (m.origin === 'catalog') {
     const link = node('a', Core.sourceName(m.source) + ' ' + m.source.tag);
     link.href = Core.sourceUrl(m.source); link.target = '_blank'; link.rel = 'noopener noreferrer';
-    $('detail-source').replaceChildren('Community machine by ' + m.source.maintainer + ' · ', link);
+    $('detail-source').replaceChildren('Community machine by ' + m.source.maintainer + ' Â· ', link);
   } else $('detail-source').textContent = m.origin === 'bundled' ? 'Bundled with Open-XY' : 'Your machine, from this kit';
   $('art-preview').replaceChildren();
   $('audition-controls').replaceChildren();
   stopAudio = () => {};
   if (m.preview) {
-    $('art-caption').textContent = 'Audition the sound and screen. The OP–XY’s own envelopes and effects aren’t included.';
+    $('art-caption').textContent = 'Audition the sound and screen. The OPâ€“XYâ€™s own envelopes and effects arenâ€™t included.';
   } else {
     $('art-preview').append(node('span', 'No browser preview for this machine yet.', 'art-placeholder'));
     $('art-caption').textContent = '';
@@ -198,17 +198,29 @@ async function inspect(id) {
       // Eight parameter words; each control position shows the parameter last edited there.
       const parameters = Object.assign(Array(8).fill(0), m.preview.defaults), shown = [0, 1, 2, 3];
       let serial = 0, previous = 0, handle, cancelled = false;
-      // A small keyboard from middle C: a key plays its note while held.
-      const names = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
+      // A small keyboard from middle C: a key plays its note while held. The preview plays
+      // one note at a time, the newest held key; letting it go returns to the one before.
+      const names = ['C','Câ™¯','D','Dâ™¯','E','F','Fâ™¯','G','Gâ™¯','A','Aâ™¯','B'], held = [];
       const keyboard = node('div', undefined, 'preview-keys');
       keyboard.id = 'preview-keys'; keyboard.setAttribute('role', 'group'); keyboard.setAttribute('aria-label', 'Preview keyboard');
       for (let note = 60; note <= 77; note++) {
         const black = [1, 3, 6, 8, 10].includes(note % 12), name = names[note % 12] + (Math.floor(note / 12) - 1);
         const key = node('button', note % 12 === 0 ? name : undefined, 'preview-key' + (black ? ' black' : ''));
         key.type = 'button'; key.setAttribute('aria-label', name);
-        const activity = () => display.setActivity([...keyboard.children].filter(button => button.dataset.down === 'true').length);
-        const press = () => { if (key.dataset.down === 'true') return; key.dataset.down = 'true'; activity(); trigger(); audio?.play(note); };
-        const lift = () => { if (key.dataset.down !== 'true') return; key.dataset.down = 'false'; activity(); audio?.release(note); frame(0); };
+        const press = () => {
+          if (key.dataset.down === 'true') return;
+          key.dataset.down = 'true'; held.push(note);
+          display.setActivity(held.length); trigger(); audio?.play(note);
+        };
+        const lift = () => {
+          if (key.dataset.down !== 'true') return;
+          key.dataset.down = 'false';
+          const sounding = held.at(-1) === note;
+          held.splice(held.indexOf(note), 1);
+          display.setActivity(held.length);
+          if (sounding && held.length) audio?.play(held.at(-1)); else audio?.release(note);
+          frame(0);
+        };
         key.onpointerdown = e => { e.preventDefault(); key.setPointerCapture(e.pointerId); key.focus(); press(); };
         key.onpointerup = key.onpointercancel = key.onlostpointercapture = lift;
         key.onkeydown = e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); if (!e.repeat) press(); } };
@@ -224,7 +236,7 @@ async function inspect(id) {
         if (error && ticket === previewRevision) $('art-caption').textContent = 'Audio unavailable: ' + error;
       }) : null;
       volume.hidden = !hasAudio;
-      stopAudio = () => { audio?.stop(); display.setActivity(0); for (const key of keyboard.children) key.dataset.down = 'false'; if (!cancelled) frame(0); };
+      stopAudio = () => { audio?.stop(); held.length = 0; display.setActivity(0); for (const key of keyboard.children) key.dataset.down = 'false'; if (!cancelled) frame(0); };
       level.oninput = () => audio?.setVolume(Number(level.value) / 100);
       $('audition-controls').append(keyboard, volume);
       $('audition-controls').setAttribute('aria-label', hasAudio ? 'Sound preview' : 'Display preview');
@@ -321,7 +333,7 @@ function recalculate() {
   ready();
 }
 async function build() {
-  const ticket = revision; $('build').disabled = true; status('Linking and checking your build…');
+  const ticket = revision; $('build').disabled = true; status('Linking and checking your buildâ€¦');
   try {
     const selection = [...selected], result = Core.linkKit(kit, selection, numbers);
     const files = await Core.buildAssets(kit, selection, catalog, result.numbers);
@@ -332,7 +344,7 @@ async function build() {
     const nextLayout = {format: 'opxy-layout/1', profile: kit.profile.id, selected: selection, machines: result.numbers};
     const encode = value => new TextEncoder().encode(JSON.stringify(value, null, 2) + '\n');
     files['layout.json'] = encode(nextLayout);
-    files['build.json'] = encode({format: 'opxy-kit-build/1', source_sha256: kit.profile.stock_sha256,
+    files['build.json'] = encode({format: 'opxy-kit-build/1', version: kit.version, source_sha256: kit.profile.stock_sha256,
       sizes: result.sizes, files: hashes, hardware_qualified: false, cpu_measured: false});
     const zip = Core.zipFiles(files);
     if (ticket !== revision) return;
@@ -375,8 +387,11 @@ $('save-layout').onclick = () => {
 };
 try {
   const data = $('kit-data').textContent.trim();
-  Core.requireThat(data, 'The machines couldn’t load. Reload this page.');
+  Core.requireThat(data, 'The machines couldnâ€™t load. Reload this page.');
   kit = await Core.openKit(JSON.parse(data));
+  // A tap opens the memory breakdown on screens without hover.
+  document.querySelector('.memory-bar').onclick = e => e.currentTarget.classList.toggle('open');
+  $('builder-version').textContent = 'v' + kit.version;
   selected = kit.machines.map(machine => machine.id);
   try {
     const remembered = JSON.parse(localStorage.getItem(NUMBERS_KEY) ?? 'null');

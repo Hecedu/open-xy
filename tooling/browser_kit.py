@@ -99,7 +99,8 @@ def export(package, output, tools, preview_cxx='clang++', *, stock_catalog, pers
         objects.append(entry)
     # Stock addresses only: each selection's machine numbers are the builder's.
     stock = {key: value for key, value in definitions.items() if key in native.DEFINITIONS}
-    kit = dict(format='opxy-browser-kit/1', profile=profile,
+    # The release version, as the firmware's boot label shows it.
+    kit = dict(format='opxy-browser-kit/1', version=native.package_version(package), profile=profile,
                profileSource=base64.b64encode(read(ROOT / ('profiles/' + profile['id'] + '.json'))).decode('ascii'),
                definitions=stock, fixed={m.id: m.identity for m in discovered()},
                machines=kit_machines, objects=objects, notices=notices(machines),
@@ -181,8 +182,10 @@ def write_builder(kit, output):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    for name in ('stock-os', 'stock-content', 'out'):
+    for name in ('stock-os', 'out'):
         parser.add_argument('--' + name, required=True)
+    parser.add_argument('--stock-content', default=str(native.STOCK_CONTENT),
+                        help="the folder holding op1_factory.json (default: this repository's copy)")
     parser.add_argument('--toolchain', help='pinned binutils directory (default: local/toolchain/bin)')
     parser.add_argument('--compiler', help='pinned Blackfin GCC bundle root (default: local/toolchain)')
     parser.add_argument('--preview-cxx', default='clang++', help='Clang++ with wasm32/wasm-ld')

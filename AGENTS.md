@@ -28,8 +28,11 @@ User instructions take precedence over this file.
 
 ## Private firmware storage
 
-Firmware, stock content, extracted firmware and firmware-containing packages
-must live outside every checkout, including ignored local/ directories. The
-docs use %LOCALAPPDATA%/OPXY-SDK/private/ (Windows) or
+All firmware comes from the user's device. Firmware, extracted firmware,
+firmware-containing packages and stock content must live outside every
+checkout, including ignored local/ directories. The one exception is the stock
+instrument catalog, profiles/opxy-1.2.0/content/op1_factory.json, kept for
+development and checked against the profile's hash; never add other stock
+files beside it. The docs use %LOCALAPPDATA%/OPXY-SDK/private/ (Windows) or
 ~/Library/Application Support/OPXY-SDK/private/ (macOS); pass external
 input/output paths to build commands. Never force-add these files or bypass the commit/push guards.

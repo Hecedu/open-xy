@@ -231,6 +231,8 @@ const screenTemplateOk = async kit => typeof kit.screenTemplate === 'string' &&
 export async function openKit(kit) {
   check(kit.format === 'opxy-browser-kit/1' && kit.machines.length > 0 && kit.machines.length <= 32,
     'Unsupported curated kit');
+  // The release version, which every build's boot label shows (tooling.startup_label).
+  check(typeof kit.version === 'string' && /^\d+\.\d+\.\d+$/.test(kit.version), 'Unsupported curated kit version');
   const profileBytes = decode64(kit.profileSource);
   check(await sha256(profileBytes) === PROFILE_SHA256 &&
     JSON.stringify(JSON.parse(decoder.decode(profileBytes))) === JSON.stringify(kit.profile),
