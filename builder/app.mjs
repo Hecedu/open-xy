@@ -197,16 +197,26 @@ async function inspect(id) {
       // Eight parameter words; each control position shows the parameter last edited there.
       const parameters = Object.assign(Array(8).fill(0), m.preview.defaults), shown = [0, 1, 2, 3];
       let serial = 0, previous = 0, handle, cancelled = false;
-      // A small keyboard from middle C: a key plays its note while held.
-      const names = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
+      // A small keyboard from middle C: a key plays its note while held. The preview plays
+      // one note at a time, the newest held key; letting it go returns to the one before.
+      const names = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'], held = [];
       const keyboard = node('div', undefined, 'preview-keys');
       keyboard.id = 'preview-keys'; keyboard.setAttribute('role', 'group'); keyboard.setAttribute('aria-label', 'Preview keyboard');
       for (let note = 60; note <= 77; note++) {
         const black = [1, 3, 6, 8, 10].includes(note % 12), name = names[note % 12] + (Math.floor(note / 12) - 1);
         const key = node('button', note % 12 === 0 ? name : undefined, 'preview-key' + (black ? ' black' : ''));
         key.type = 'button'; key.setAttribute('aria-label', name);
-        const press = () => { if (key.dataset.down === 'true') return; key.dataset.down = 'true'; trigger(); audio.play(note); };
-        const lift = () => { if (key.dataset.down !== 'true') return; key.dataset.down = 'false'; audio.release(note); };
+        const press = () => {
+          if (key.dataset.down === 'true') return;
+          key.dataset.down = 'true'; held.push(note); trigger(); audio.play(note);
+        };
+        const lift = () => {
+          if (key.dataset.down !== 'true') return;
+          key.dataset.down = 'false';
+          const sounding = held.at(-1) === note;
+          held.splice(held.indexOf(note), 1);
+          if (sounding && held.length) audio.play(held.at(-1)); else audio.release(note);
+        };
         key.onpointerdown = e => { e.preventDefault(); key.setPointerCapture(e.pointerId); key.focus(); press(); };
         key.onpointerup = key.onpointercancel = key.onlostpointercapture = lift;
         key.onkeydown = e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); if (!e.repeat) press(); } };
@@ -326,7 +336,7 @@ async function build() {
     const nextLayout = {format: 'opxy-layout/1', profile: kit.profile.id, selected: selection, machines: result.numbers};
     const encode = value => new TextEncoder().encode(JSON.stringify(value, null, 2) + '\n');
     files['layout.json'] = encode(nextLayout);
-    files['build.json'] = encode({format: 'opxy-kit-build/1', source_sha256: kit.profile.stock_sha256,
+    files['build.json'] = encode({format: 'opxy-kit-build/1', version: kit.version, source_sha256: kit.profile.stock_sha256,
       sizes: result.sizes, files: hashes, hardware_qualified: false, cpu_measured: false});
     const zip = Core.zipFiles(files);
     if (ticket !== revision) return;
@@ -371,6 +381,9 @@ try {
   const data = $('kit-data').textContent.trim();
   Core.requireThat(data, 'The machines couldn’t load. Reload this page.');
   kit = await Core.openKit(JSON.parse(data));
+  // A tap opens the memory breakdown on screens without hover.
+  document.querySelector('.memory-bar').onclick = e => e.currentTarget.classList.toggle('open');
+  $('builder-version').textContent = 'v' + kit.version;
   selected = kit.machines.map(machine => machine.id);
   try {
     const remembered = JSON.parse(localStorage.getItem(NUMBERS_KEY) ?? 'null');

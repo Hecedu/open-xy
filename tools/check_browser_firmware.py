@@ -15,13 +15,13 @@ from tooling.firmware import active_services, assemble, hook_instruction, patch_
 from tooling.native import configuration, package_collection
 
 
-def check_startup_label(module, symbols, base):
+def check_startup_label(module, symbols, base, expected):
     """The linked thunk is exactly the reviewed one: R2 replay, stock draw call, stock continuation."""
     entry, text = symbols[startup_label.SYMBOL], symbols['kit_startup_label_text']
     require(startup_label.thunk_ok(module, entry['value'] - base, entry['size'], text['value']),
             'Startup thunk changed')
     at = text['value'] - base
-    require(text['size'] == len(startup_label.LABEL) and module[at:at + text['size']] == startup_label.LABEL,
+    require(text['size'] == len(expected) and module[at:at + text['size']] == expected,
             'Unexpected startup label')
 
 
@@ -49,7 +49,8 @@ def main():
     # one pixel per glyph. The existing draw call centers it at x=240.
     offset = mapped_offset(ldr(stock), 0x840131c4, 96)
     widths = stock[offset:offset + 96]
-    label = startup_label.LABEL[:-1]
+    boot_label = startup_label.label(kit['version'])
+    label = boot_label[:-1]
     require(all(32 <= c < 128 for c in label), 'Startup label outside stock font')
     width = sum(widths[c - 32] + 1 for c in label)
     left = 240 - width // 2
@@ -66,7 +67,7 @@ def main():
         require(sha(module) == result['module_sha256'], 'GNU module digest differs')
         low = kit['profile']['module_base']
         check_fallbacks(module, symbols, low)
-        check_startup_label(module, symbols, low)
+        check_startup_label(module, symbols, low, boot_label)
         require(symbols['__extensions_initialized_end']['value'] - low == result['sizes']['initialized'] and
                 symbols['__extensions_module_end']['value'] - low == result['sizes']['allocated'] and
                 sections.get('.bss', {}).get('size', 0) == result['sizes']['bss'], 'GNU memory allocation differs')

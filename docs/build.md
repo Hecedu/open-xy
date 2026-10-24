@@ -23,7 +23,7 @@ and installs it in `local/toolchain`, which every native command uses when
 `toolchain-1` release yourself, install it with
 `python sdk.py toolchain fetch --archive <zip>`.
 
-## 2. Copy the stock files
+## 2. Copy the OS from your OP-XY
 
 On an OP-XY running OS 1.2.0, hold COM while switching it on to open te-boot.
 It must show "3. dev menu"; if not, enable it with the
@@ -33,22 +33,23 @@ It must show "3. dev menu"; if not, enable it with the
 2. Press track 3 for "3. mtp file transfer (windows)", or track 2 for
    "2. mtp file transfer (mac)", and wait for "mtp mode active". Open the
    device in File Explorer, or in OpenMTP on a Mac (quit Field Kit first).
-3. Copy these files into one folder outside every checkout:
+3. Copy the OS into a folder outside every checkout:
 
 ```text
 stock-1.2.0/
   os.ldr               from /upgrade/firmware/blackfin/bin/os.ldr
-  content/
-    op1_factory.json   from /content/op1_factory.json
 ```
 
 4. Press track 2 for "2. exit".
 
 For example, keep the folder in `%LOCALAPPDATA%/OPXY-SDK/private/` on Windows or
-`~/Library/Application Support/OPXY-SDK/private/` on macOS. The build accepts
-only the exact stock files: an encrypted `.tfw` is a different format, and an
-installed Open-XY build replaces `/content/op1_factory.json`. `--stock-content`
-is whichever folder holds `op1_factory.json`.
+`~/Library/Application Support/OPXY-SDK/private/` on macOS. All firmware comes
+from your device; the build accepts only the exact stock OS, and an encrypted
+`.tfw` is a different format. The stock instrument catalog the build extends,
+`op1_factory.json`, is in this repository
+([`profiles/opxy-1.2.0/content/op1_factory.json`](../profiles/opxy-1.2.0/content/op1_factory.json)) and is the
+default `--stock-content`; pass another folder holding the same file to use
+your own copy.
 
 ## 3. Add your machine
 
@@ -95,7 +96,7 @@ older minor version; a machine's ID must differ from the bundled machines'.
 ## 4. Build
 
 ```sh
-python sdk.py build --machine <folder> --stock-os <stock-1.2.0>/os.ldr --stock-content <stock-1.2.0>/content --out <builds>/mine-001
+python sdk.py build --machine <folder> --stock-os <stock-1.2.0>/os.ldr --out <builds>/mine-001
 ```
 
 The package records its collection, so verifying or exporting it needs no
@@ -147,7 +148,7 @@ reproduces the reference bytes ([hosts](toolchain.md#hosts)). There, the
 maintainer runs:
 
 ```sh
-python sdk.py check --native-package <builds>/mine-001 --stock-os <stock-1.2.0>/os.ldr --stock-content <stock-1.2.0>/content
+python sdk.py check --native-package <builds>/mine-001 --stock-os <stock-1.2.0>/os.ldr --stock-content profiles/opxy-1.2.0/content
 ```
 
 It independently rebuilds the package (`sdk.py verify`) and runs the fixture

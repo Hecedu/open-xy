@@ -1,7 +1,10 @@
 """The boot-screen version label: one display-only edit in stock OS startup."""
+from pathlib import Path
+import re
 import struct
 
 from .formats import require
+from .pipeline import ROOT
 
 PROFILE = 'opxy-1.2.0'
 SITE = 0x8c0b9114
@@ -10,7 +13,37 @@ DRAW = 0x8c0b7ba8
 BEFORE = bytes.fromhex('32e414000207ffe347f5')
 OBJECT = 'sdk/startup_label.o'
 SYMBOL = 'kit_startup_label'
-LABEL = b'OPEN 0.0.1-1.2.0\0'
+TEMPLATE = 'sdk/platform/opxy-1.2.0/startup_label.s.in'
+# Packages built before releases were versioned showed this label's version.
+UNVERSIONED = '0.0.1'
+
+
+def release_version():
+    """The release version in VERSION, which the builder shows too. Read when a build
+    needs it, so a missing or malformed file fails only that build."""
+    path = ROOT / 'VERSION'
+    require(path.is_file(), 'Missing VERSION: the release version, <major>.<minor>.<patch>')
+    return checked(path.read_text(encoding='utf-8').strip())
+
+
+def checked(version):
+    require(isinstance(version, str) and re.fullmatch(r'\d+\.\d+\.\d+', version) is not None,
+            'A release version is <major>.<minor>.<patch>: ' + repr(version))
+    return version
+
+
+def label(version):
+    """The boot label's terminated text: the release and the stock OS it extends."""
+    return f'OPEN {checked(version)}-1.2.0'.encode('ascii') + b'\0'
+
+
+def generate(directory, version):
+    """The label unit's assembly, showing this release."""
+    source = (ROOT / TEMPLATE).read_text(encoding='utf-8')
+    require(source.count('@LABEL@') == 1, 'Startup label template placeholder missing')
+    destination = Path(directory) / 'startup_label.s'
+    destination.write_text(source.replace('@LABEL@', label(version)[:-1].decode('ascii')), encoding='utf-8', newline='\n')
+    return destination
 
 
 def jump(destination):

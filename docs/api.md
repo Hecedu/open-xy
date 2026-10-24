@@ -83,7 +83,7 @@ reduces host variation; it does not reproduce compiled Blackfin control flow,
 memory traffic or cycle costs:
 
 ```text
-CPU estimate (host-timed; not measured on the device): Pluck about 7,700 instruction-equivalents per voice block at its heaviest setting. Aim for at most 15,000; for scale, 2op FM about 14,000, Macro Osc (Braids) about 9,000
+CPU estimate (host-timed; not measured on the device): Karplus about 7,700 instruction-equivalents per voice block at its heaviest setting. Aim for at most 15,000; for scale, 2op FM about 14,000, Macro Osc (Braids) about 9,000
 ```
 
 | Host instruction-equivalents per 64-sample block | Review above | Strong warning above | Bundled machines |
