@@ -1,19 +1,22 @@
 #include <opxy/player.hpp>
 
-// Chord player. Keys below the split play chord roots; the
-// octave from the split up holds chord modifiers, which never sound:
-//   white C D E F G A B  chord type  dim aug min maj sus dom half
-//   black C# D# F# G# A#  extension  6 m7 M7 9 11
+// Chord player. On the OP-XY's F-to-E keyboard at its default octave, the
+// lower octave (F3..E4) plays chord roots and the upper octave (F4..E5) holds
+// chord modifiers, which never sound:
+//   white F G A B C D E  chord type  dim aug min maj sus dom half
+//   black F# G# A# C# D#  extension  6 m7 M7 9 11
 // A root plays the most recently held chord type with every held extension,
-// or itself alone when no type is held. Keys above that octave are roots too.
+// or itself alone when no type is held. Keys outside the modifier octave are
+// roots, so octave shifts keep playing chords.
 namespace chords {
 using opxy::u8;
 using opxy::u32;
 using opxy::i32;
 using opxy::player::Controls;
+using opxy::player::Display;
 using opxy::player::Plan;
 
-const u32 kSplit = 60;  // C4: the first modifier key
+const u32 kSplit = 65;  // F4: the first modifier key
 enum Type : u8 { kNone, kDim, kAug, kMin, kMaj, kSus, kDom, kHalf, kTypes };
 const u32 kExtensionCount = 5;
 
@@ -22,7 +25,9 @@ struct State {
     u8 last;        // most recently pressed held type
     u8 extensions;  // bit per extension
     u8 descending;  // alternate direction: the next chord's order
-    u32 seed;     // random direction
+    u32 seed;       // random direction
+    u8 root;        // the last root played, plus one; 0 before the first
+    u8 unused[3];
 };
 
 namespace {
@@ -33,8 +38,11 @@ const u8 kChords[kTypes][4] = {{0}, {0, 3, 6}, {0, 4, 8}, {0, 3, 7}, {0, 4, 7}, 
 const u8 kExtensions[kExtensionCount] = {9, 10, 11, 14, 17};
 const i32 kVoicingSteps = 6;  // the voicing encoder spans -6..+6 inversion steps
 
-// Pitch class of a modifier key -> chord type (1..7) or extension (kTypes + 0..4).
-const u8 kModifier[12] = {kDim, kTypes, kAug, kTypes + 1, kMin, kMaj, kTypes + 2, kSus, kTypes + 3, kDom, kTypes + 4, kHalf};
+// Key of the modifier octave (0 = F) -> chord type (1..7) or extension (kTypes + 0..4).
+const u8 kModifier[12] = {kDim, kTypes, kAug, kTypes + 1, kMin, kTypes + 2, kMaj, kSus, kTypes + 3, kDom, kTypes + 4, kHalf};
+// The modifier octave key of each chord type and extension, for the page.
+const u8 kTypeKey[kTypes] = {0, 0, 2, 4, 6, 7, 9, 11};
+const u8 kExtensionKey[kExtensionCount] = {1, 3, 5, 8, 10};
 
 int modifier(u32 note) {
     return note >= kSplit && note < kSplit + 12 ? kModifier[note - kSplit] : -1;
@@ -67,6 +75,61 @@ void voice(i32* notes, u32 count, i32 voicing) {
     for (; voicing > 0; --voicing) { notes[0] += 12; sort(notes, count); }
     for (; voicing < 0; ++voicing) { notes[count - 1] -= 12; sort(notes, count); }
 }
+
+// Bounded text: appends while there is room, always terminated.
+struct Text {
+    char* out;
+    u32 size, length;
+    Text& operator<<(const char* s) {
+        while (*s && length + 1 < size) out[length++] = *s++;
+        out[length] = 0;
+        return *this;
+    }
+    Text& operator<<(i32 n) {
+        char digits[12];
+        u32 count = 0, v = n < 0 ? static_cast<u32>(-n) : static_cast<u32>(n);
+        do { digits[count++] = static_cast<char>('0' + v % 10); v /= 10; } while (v);
+        if (n < 0) *this << "-";
+        while (count) { const char c[2] = {digits[--count], 0}; *this << c; }
+        return *this;
+    }
+};
+template <u32 N> Text text(char (&out)[N]) { out[0] = 0; return Text{out, N, 0}; }
+
+const char* const kNoteNames[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+
+// "C minor 7": the root, then the chord in words. Dominant and half-diminished
+// read as major and diminished with a minor seventh.
+void name(Text& out, u32 root, u32 type, u32 extensions) {
+    out << kNoteNames[root % 12];
+    if (type == kNone) return;
+    bool m7 = extensions & 2, M7 = extensions & 4;
+    const bool e6 = extensions & 1, e9 = extensions & 8, e11 = extensions & 16;
+    u32 q = type;
+    if (type == kDom) { q = kMaj; m7 = true; }
+    if (type == kHalf) { q = kDim; m7 = true; }
+    const bool seventh = m7 || M7;
+    const char* n = e11 ? "11" : e9 ? "9" : "7";
+    static const char* const quality[] = {"", "diminished", "augmented", "minor", "major", "sus4"};
+    out << " ";
+    if (m7) {
+        static const char* const words[] = {"", "half-dim ", "augmented ", "minor ", "dominant ", ""};
+        out << words[q] << n;
+        if (q == kSus) out << " sus4";
+    } else if (M7) {
+        static const char* const words[] = {"", "dim major ", "aug major ", "minor major ", "major ", "major "};
+        out << words[q] << n;
+        if (q == kSus) out << " sus4";
+    } else if (e6 && q == kDim) {
+        out << "diminished 7";
+    } else {
+        out << quality[q];
+    }
+    if (m7 && M7) out << " + maj7";
+    if (e6 && (seventh || q != kDim)) out << (seventh ? " 13" : " 6");
+    if (!seventh && e9) out << " add 9";
+    if (!seventh && e11) out << " add 11";
+}
 }
 
 bool release(State& state, u32 note) {
@@ -97,6 +160,7 @@ bool press(State& state, const Controls& controls, u32 note, u32 velocity, Plan&
         state.extensions |= static_cast<u8>(1u << (m - kTypes));
         return true;
     }
+    state.root = static_cast<u8>(note % 128 + 1);
 
     i32 notes[opxy::player::max_tones];
     u32 count = 0;
@@ -140,5 +204,29 @@ bool press(State& state, const Controls& controls, u32 note, u32 velocity, Plan&
         ++plan.count;
     }
     return true;
+}
+
+// The page: dots on the selected root (lower octave) and on every held
+// chord type and extension (upper octave), the chord in words, and the four
+// encoder values.
+void display(const State& state, const Controls& controls, Display& display) {
+    display.lit = 0;
+    if (state.root) display.lit |= 1u << ((state.root - 1 + 12 - kSplit % 12) % 12);
+    if (state.last != kNone) display.lit |= 1u << (12 + kTypeKey[state.last]);
+    for (u32 i = 0; i < kExtensionCount; ++i)
+        if (state.extensions & (1u << i)) display.lit |= 1u << (12 + kExtensionKey[i]);
+    Text line = text(display.text);
+    if (state.root) name(line, state.root - 1, state.last, state.extensions);
+    Text strum = text(display.values[0]);
+    strum << static_cast<i32>(steps(controls.value[0], 64));
+    static const char* const directions[4] = {"up", "dn", "alt", "rnd"};
+    Text direction = text(display.values[1]);
+    direction << directions[steps(controls.value[1], 4)];
+    const i32 voicing = static_cast<i32>(steps(controls.value[2], 2 * kVoicingSteps + 1)) - kVoicingSteps;
+    Text voice_text = text(display.values[2]);
+    if (voicing > 0) voice_text << "+";
+    voice_text << voicing;
+    Text spread = text(display.values[3]);
+    spread << (steps(controls.value[3], 2) ? "on" : "off");
 }
 }

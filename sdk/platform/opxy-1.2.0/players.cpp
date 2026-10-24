@@ -17,6 +17,8 @@ opxy::u32 sdk_player_keep(opxy::u32 type) __asm__("sdk_player_keep");
 opxy::u32 sdk_player_ui_type() __asm__("sdk_player_ui_type");
 const char* sdk_player_name(opxy::u32 type) __asm__("sdk_player_name");
 opxy::u32 sdk_player_id(const void* name) __asm__("sdk_player_id");
+opxy::u32 sdk_player_substitute(opxy::u32 selected) __asm__("sdk_player_substitute");
+extern opxy::u32 (*sdk_screen_substitute)(opxy::u32) __asm__("sdk_screen_substitute");
 }
 
 namespace opxy { namespace platform {
@@ -28,6 +30,9 @@ const u32 kFactory = 0x8d57de60;       // (track, type, flag) -> object or null
 const u32 kSelectedType = 0x8d57dfac;  // the selected track's live or stored type
 const u32 kParameters = 0x8d584a70;    // (track) -> the track's eight parameter words
 const u32 kArpeggio = 2, kMaestro = 4, kStockTypes = 5;
+const u32 kPlayers = 0x84f055d0;       // each track's player object, or null
+const u32 kPlayerSlots = 16;           // one per track
+const u32 kMaestroPage = 46;           // the stock Maestro page (chord.svg)
 const u32 kContinue = 0xffffffffu;
 
 // Maestro object fields: chord records from +0x1dc, their count at +0x41c.
@@ -75,6 +80,18 @@ bool equal(const StockString* string, const char* name) {
 }
 
 void* player_state(void* object) { return bytes(object) + kStateOffset; }
+
+void* player_object(u32 track, const void* const* vtable) {
+    if (track >= kPlayerSlots) return nullptr;
+    void* object = *reinterpret_cast<void* const volatile*>(kPlayers + 4 * track);
+    return object && *static_cast<const void* const* const*>(object) == vtable ? object : nullptr;
+}
+
+int register_player_page(const Record* record, const Screen* screen) {
+    const int result = sdk_register_screen(record, screen);
+    if (result == 1) sdk_screen_substitute = sdk_player_substitute;
+    return result;
+}
 
 opxy::player::Controls player_controls(void* object) {
     const u32 track = *reinterpret_cast<const u32*>(bytes(object) + 4);
@@ -138,4 +155,17 @@ u32 sdk_player_id(const void* name) {
         if (p && equal(static_cast<const registry::StockString*>(name), p->name)) return p->type;
     }
     return kContinue;
+}
+
+// The compositor's substitute for the selected page: the own page of the
+// selected track's player while the stock Maestro page is selected, else 0.
+u32 sdk_player_substitute(u32 selected) {
+    if (selected != kMaestroPage) return 0;
+    const u32 track = selected_track();
+    for (u32 i = 0; i < sdk_player_count; ++i) {
+        const Player* p = sdk_players[i].player();
+        if (p && p->page && p->page_ready && player_object(track, p->vtable) && p->page_ready() == 1)
+            return static_cast<u32>(reinterpret_cast<Address>(p->page));
+    }
+    return 0;
 }

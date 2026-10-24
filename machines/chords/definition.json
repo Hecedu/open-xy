@@ -5,7 +5,7 @@
   "parameters": [
     {
       "id": "strum",
-      "label": "Strum",
+      "label": "Str",
       "default": 0,
       "mapping": {
         "kind": "linear",
@@ -20,13 +20,18 @@
       "default": 0,
       "mapping": {
         "kind": "enum",
-        "labels": ["up", "down", "alternate", "random"]
+        "labels": [
+          "up",
+          "down",
+          "alternate",
+          "random"
+        ]
       },
       "display": "enum"
     },
     {
       "id": "voicing",
-      "label": "Voicing",
+      "label": "Voi",
       "default": 0.5,
       "mapping": {
         "kind": "linear",
@@ -37,11 +42,14 @@
     },
     {
       "id": "spread",
-      "label": "Spread",
+      "label": "Spr",
       "default": 0,
       "mapping": {
         "kind": "enum",
-        "labels": ["off", "on"]
+        "labels": [
+          "off",
+          "on"
+        ]
       },
       "display": "enum"
     }

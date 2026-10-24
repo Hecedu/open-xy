@@ -352,8 +352,25 @@ Calls are serialized and run with the sequencer, so they must be bounded and
 allocation-free. `State` is at most `opxy::player::state_bytes` (2048) with
 alignment at most 4, starts zeroed when the player is selected and holds no
 resources. A player declares one to four controls and has no browser preview.
-Players use the stock Maestro page. Put musical vectors in
-`machines/<id>/tests/*.cpp`; `sdk.py check` compiles and runs each for the host.
+Put musical vectors in `machines/<id>/tests/*.cpp`; `sdk.py check` compiles and
+runs each for the host.
+
+Without a page of its own a player shows the stock Maestro page. With a `page`
+in its identity it draws its own, which replaces the Maestro page whenever the
+selected track plays it. Its `panel.svg.fragment` holds 24 dots
+(`<name>_dot_0`..`<name>_dot_23`, filled and stroked, each placed with
+`transform="matrix(1 0 0 1 x y)"`) and one text line (`<name>_text`, placed the
+same way) below the stock four-control header. The player supplies:
+
+```cpp
+void display(const State& state, const opxy::player::Controls& controls,
+             opxy::player::Display& display);
+```
+
+`display.lit` shows dot `k` when bit `k` is set; `display.text` replaces and
+centres the line; `display.values` are the header's four values under the
+definition's labels. It runs on the GUI side once per frame and may read State
+while the sequencer changes it.
 
 ## Registration boundary
 
@@ -371,7 +388,7 @@ namespace. It is a lowercase letter followed by letters, digits or `_`, at most
 | `schema` | 1 |
 | `kind` | `synth`, `sample`, `effect` or `player` |
 | `description` | Plain text of at most 160 characters, shown by the builder and preview |
-| `identity` | `{"engine": n, "page": p}`, `{"effect": n, "page": 21}` for an effect or `{"player": n}` for a player; see below |
+| `identity` | `{"engine": n, "page": p}`, `{"effect": n, "page": 21}` for an effect or `{"player": n}`, optionally with `"page"`, for a player; see below |
 | `sources`, `includes` | Optional extra translation units and include folders inside the machine folder; synths only, since the native plan compiles one source for the other kinds |
 | `icon` | Optional builder glyph: SVG path data in a 46 × 48 box, drawn as a stroke. The kind's glyph is used otherwise |
 | `presetDefaults` | Optional `{"amp": {...}}` overriding generated factory preset envelope values: `attack`, `decay`, `release` and `sustain`, each 0..32767. It does not rewrite existing projects or presets |
@@ -386,7 +403,7 @@ source dry mixer, as described under [effects](#effects).
 | `synth` | 1..62, except the stock sentinel 33 and the IDs stock registers (2–4, 6, 7, 18–20, 22, 29–32) | Its own screen: 82..127 |
 | `sample` | 34..62 | Stock sample page 2 or 7; `padSettings` requires 7 |
 | `effect` | 1–4, 6–8, 11 or 20..62 | Stock FX page 21 |
-| `player` | 6..31, a player type stock never uses | Stock Maestro page |
+| `player` | 6..31, a player type stock never uses | Optional own page: 82..127; else the stock Maestro page |
 
 Engine IDs above 32, effect IDs above 18 and pages above 81 exist only in the
 relocated stock tables.

@@ -33,4 +33,17 @@ struct Plan {
 struct Controls {
     i32 value[4];
 };
+
+// A player with its own page draws it from State on the GUI side, once per
+// frame, while the sequencer may be changing State:
+//   void display(const State& state, const Controls& controls, Display& display);
+// lit shows the artwork's dot k (<name>_dot_<k>, 0..23) when bit k is set;
+// text replaces the artwork's <name>_text line; values are the header's four
+// encoder values under the definition's labels. Strings are terminated.
+const u32 display_dots = 24;
+struct Display {
+    u32 lit;
+    char text[32];
+    char values[4][8];
+};
 }}

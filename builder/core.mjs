@@ -97,9 +97,13 @@ export function readObject(bytes) {
 
 // The profile's identity rules, as tooling.machines.check_identity applies them.
 export function validIdentity(rules, kind, identity) {
-  if (kind === 'player')
-    return !!identity && typeof identity === 'object' && Object.keys(identity).join() === 'player' &&
-      Number.isInteger(identity.player) && rules.players.includes(identity.player);
+  if (kind === 'player') {
+    if (!identity || typeof identity !== 'object') return false;
+    const keys = Object.keys(identity).sort().join();
+    if (keys !== 'player' && keys !== 'page,player') return false;
+    if (!Number.isInteger(identity.player) || !rules.players.includes(identity.player)) return false;
+    return !('page' in identity) || Number.isInteger(identity.page) && identity.page > rules.page_none && identity.page < rules.pages;
+  }
   const slot = kind === 'effect' ? 'effect' : 'engine';
   if (!identity || typeof identity !== 'object' || Object.keys(identity).sort().join() !== [slot, 'page'].sort().join()) return false;
   const n = identity[slot], page = identity.page;
@@ -118,8 +122,9 @@ export function identities(kit, saved = null) {
     check(!Object.hasOwn(result, m.id), 'Duplicate machine identity');
     const id = m.identity;
     check(validIdentity(kit.profile.identities, m.kind, id), 'Identity overlaps a stock slot or exceeds capacity');
-    // Sample engines and effects share stock pages; a synth's own page is unique.
-    const slots = {synth: ['engine', 'page'], effect: ['effect'], player: ['player']}[m.kind] ?? ['engine'];
+    // Sample engines and effects share stock pages; a synth's or player's own page is unique.
+    const slots = {synth: ['engine', 'page'], effect: ['effect'],
+      player: 'page' in id ? ['player', 'page'] : ['player']}[m.kind] ?? ['engine'];
     for (const kind of slots) {
       check(!seen[kind].has(id[kind]), 'Conflicting ' + kind + ' assignment'); seen[kind].add(id[kind]);
     }

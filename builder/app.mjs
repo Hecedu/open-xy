@@ -161,7 +161,7 @@ async function inspect(id) {
   const own = kit.objects.filter(o => o.owner === id).flatMap(o => o.sections.filter(s => s.group));
   facts($('machine-facts'), {'Code and data': kib(own.filter(s => s.type !== 8).reduce((n, s) => n + s.size, 0)),
     'Working memory': kib(own.filter(s => s.type === 8).reduce((n, s) => n + s.size, 0)),
-    ...(m.kind === 'player' ? {'Player type': m.identity.player, 'Page': 'Stock Maestro page'} :
+    ...(m.kind === 'player' ? {'Player type': m.identity.player, 'Page': m.identity.page ?? 'Stock Maestro page'} :
       {[m.kind === 'effect' ? 'Effect ID' : 'Engine ID']: m.identity.effect ?? m.identity.engine, 'Page': m.identity.page})});
   document.querySelectorAll('.machine button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.id === id)));
   if (m.preview) {

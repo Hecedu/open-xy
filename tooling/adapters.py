@@ -379,10 +379,24 @@ def generate_fx_object(directory, m):
 
 
 def generate_player_object(directory, m):
-    """A player's stock object methods around its press and release."""
-    return expand('player_object.cpp.in', dict(PREFIX=m.prefix, NAMESPACE=m.definition['id'], NAME=m.native_name,
-                                               TYPE=m.identity['player']),
-                  Path(directory) / f'player_object_{m.prefix}.cpp')
+    """A player's stock object methods around its press and release, and its own page when it has one."""
+    from .native import player_page_ids
+    values = dict(PREFIX=m.prefix, NAMESPACE=m.definition['id'], NAME=m.native_name, TYPE=m.identity['player'],
+                  PAGE='nullptr', PAGE_READY='nullptr', PAGE_DECLARATIONS='', PAGE_UNIT='')
+    if m.display == 'player':
+        p = m.prefix
+        page = (TEMPLATES / 'player_page.cpp.in').read_text(encoding='utf-8')
+        titles = [json.dumps(parameter['label'].lower()) for parameter in m.definition['parameters']]
+        titles += ['""'] * (4 - len(titles))
+        for key, value in dict(IDS='\n'.join(f'    "{name}",' for name in player_page_ids(p)),
+                               TITLES=', '.join(titles), PAGE_LIMIT=RELOCATED['PAGE_LIMIT'], PREFIX=p,
+                               NAMESPACE=m.definition['id'], NAME=m.native_name).items():
+            page = page.replace('@' + key + '@', value)
+        values.update(PAGE=f'{p}_page_id', PAGE_READY=f'{p}_screen_ready', PAGE_UNIT=page,
+                      PAGE_DECLARATIONS='\n'.join([f'extern const char {p}_page_id[] __asm__("{p}_page_id");',
+                                                    f'int {p}_screen_register() __asm__("{p}_screen_register");',
+                                                    f'int {p}_screen_ready() __asm__("{p}_screen_ready");']))
+    return expand('player_object.cpp.in', values, Path(directory) / f'player_object_{m.prefix}.cpp')
 
 
 def generate_player_table(directory, machines):

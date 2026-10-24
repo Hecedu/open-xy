@@ -8,6 +8,7 @@
 #include "stock.hpp"
 extern "C" {
 const opxy::platform::Player* @PREFIX@_player() __asm__("@PREFIX@_player");
+@PAGE_DECLARATIONS@
 }
 using State = @NAMESPACE@::State;
 static_assert(sizeof(State) <= opxy::player::state_bytes, "Player state exceeds the SDK state area");
@@ -45,5 +46,6 @@ const void* const @PREFIX@_player_vtable[16] = {
     reinterpret_cast<const void*>(0x8d57c47c), reinterpret_cast<const void*>(0x8d57c470)
 };
 }
-static const opxy::platform::Player player = {@TYPE@, "@NAME@", @PREFIX@_player_vtable};
+static const opxy::platform::Player player = {@TYPE@, "@NAME@", @PREFIX@_player_vtable, @PAGE@, @PAGE_READY@};
 const opxy::platform::Player* @PREFIX@_player() { return &player; }
+@PAGE_UNIT@

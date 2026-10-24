@@ -292,6 +292,14 @@ whose root matches. The SDK state follows at `+0x800` in the same slot.
 | `0x8c0afca2`, `0x8c0affa6` | The two controller lookups' type query: an owned type reads Maestro's entry; any other type from 5 reads Arpeggio's |
 | `0x8d5bbf50`, `0x8d5bbfd8` | Type-to-name and name-to-type entries: the catalog and menu find an owned name |
 
+A player's own page is an SDK screen object in a relocated page slot,
+registered on the GUI role like a synth's. Stock shows the Maestro page (46,
+`chord.svg`) for a player track, through the Maestro controller that edits the
+four parameters. While page 46 is selected and the selected track's player
+object has an owned method table, the compositor hook paints the player
+page's slot in page 46's turn, in its layer, and leaves the player page's own
+turn out. The controller, input and the selected page are unchanged.
+
 The catalog appends each player to `seq_types` with ID type + 4, as stock
 numbers Arpeggio, Hold and Maestro 6..8. Firmware without the player opens
 its tracks as Arpeggio. The menu's own type query (`0x8c0afc68`) keeps the

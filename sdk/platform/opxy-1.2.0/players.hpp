@@ -11,13 +11,22 @@ struct Player {
     u32 type;
     const char* name;
     const void* const* vtable;
+    const char* page;        // absolute symbol: its own page ID, or null without one
+    int (*page_ready)();     // 1 while that page is in its slot
 };
+struct Record;
+struct Screen;
 struct PlayerEntry {
     const Player* (*player)();
 };
 
 // The SDK state area inside a stock player slot, zeroed when the player is created.
 void* player_state(void* object);
+// The track's player object when it has this method table, else null.
+void* player_object(u32 track, const void* const* vtable);
+// Registers a player's own page (sdk_register_screen) and, once one is in
+// place, lets the compositor paint it for the Maestro page.
+int register_player_page(const Record* record, const Screen* screen);
 // The track's four page parameters.
 opxy::player::Controls player_controls(void* object);
 // Appends one chord record that stock plays from the next step and releases

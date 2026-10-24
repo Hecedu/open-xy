@@ -2,13 +2,14 @@
 #include "../player.cpp"
 #include <cstdio>
 #include <initializer_list>
+#include <string>
 
 namespace {
 int failures = 0;
 const opxy::i32 kCentre = 0x40000000, kTop = 0x7fffffff;
-// The modifier octave from C4.
-enum Key : unsigned { kDimKey = 60, k6 = 61, kAugKey = 62, kM7minor = 63, kMinKey = 64, kMajKey = 65,
-                      kM7major = 66, kSusKey = 67, k9 = 68, kDomKey = 69, k11 = 70, kHalfKey = 71 };
+// The modifier octave, F4..E5.
+enum Key : unsigned { kDimKey = 65, k6 = 66, kAugKey = 67, kM7minor = 68, kMinKey = 69, kM7major = 70,
+                      kMajKey = 71, kSusKey = 72, k9 = 73, kDomKey = 74, k11 = 75, kHalfKey = 76 };
 
 opxy::i32 step(unsigned index, unsigned count) {  // the centre of an encoder step
     return static_cast<opxy::i32>((2ull * index + 1) * 0x40000000ull / count);
@@ -43,9 +44,10 @@ int main() {
     { const int p[] = {48}; expect("no chord type plays the root", plan, p, none, 1); }
     check("plain root release goes to stock", !chords::release(state, 48));
 
-    for (unsigned key = 60; key < 72; ++key)
+    for (unsigned key = 65; key < 77; ++key)
         check("every modifier key is taken silently", chords::press(state, controls, key, 90, plan) && plan.count == 0);
-    for (unsigned key = 60; key < 72; ++key) check("every modifier release is taken", chords::release(state, key));
+    for (unsigned key = 65; key < 77; ++key) check("every modifier release is taken", chords::release(state, key));
+    check("E4 is a root", chords::press(state, controls, 64, 90, plan) && plan.count == 1 && !chords::release(state, 64));
 
     struct { unsigned type; int tones[4]; unsigned count; const char* name; } types[] = {
         {kDimKey, {48, 51, 54}, 3, "C dim"},    {kAugKey, {48, 52, 56}, 3, "C aug"},
@@ -80,8 +82,8 @@ int main() {
     { const int p[] = {48, 51, 54, 57}; expect("dim + 6 = diminished 7", plan, p, none, 4); }
     chords::release(state, k6); chords::release(state, kDimKey);
     hold(kSusKey);
-    play(72);
-    { const int p[] = {72, 77, 79}; expect("keys above the modifier octave are roots", plan, p, none, 3); }
+    play(77);
+    { const int p[] = {77, 82, 84}; expect("keys above the modifier octave are roots", plan, p, none, 3); }
 
     controls.value[0] = step(4, 64);
     play(48);
@@ -113,6 +115,32 @@ int main() {
     play(120);
     check("tones above 127 are dropped", plan.count < 4);
     for (unsigned i = 0; i < plan.count; ++i) check("pitches stay in range", plan.tones[i].pitch <= 127);
+
+    // The page: dot k is key k from F, lower octave 0..11, modifier octave 12..23.
+    controls = opxy::player::Controls{{0, 0, kCentre, 0}};
+    chords::State page = {};
+    opxy::player::Display shown;
+    chords::display(page, controls, shown);
+    check("blank page before a root", shown.lit == 0 && shown.text[0] == 0);
+    for (unsigned key : {kMinKey, kM7minor, k9}) chords::press(page, controls, key, 90, plan);
+    chords::press(page, controls, 48, 90, plan);
+    chords::display(page, controls, shown);
+    check("C minor 9 named", std::string(shown.text) == "C minor 9");
+    check("C minor 9 dots", shown.lit == ((1u << 7) | (1u << (12 + 4)) | (1u << (12 + 3)) | (1u << (12 + 8))));
+    check("header values", std::string(shown.values[0]) == "0" && std::string(shown.values[1]) == "up" &&
+                           std::string(shown.values[2]) == "0" && std::string(shown.values[3]) == "off");
+    chords::release(page, k9); chords::release(page, kM7minor); chords::release(page, kMinKey);
+    chords::press(page, controls, kHalfKey, 90, plan);
+    chords::press(page, controls, 54, 90, plan);
+    chords::display(page, controls, shown);
+    check("F# half-dim 7 named", std::string(shown.text) == "F# half-dim 7");
+    controls.value[2] = kTop; controls.value[1] = step(3, 4); controls.value[3] = kTop; controls.value[0] = step(63, 64);
+    chords::display(page, controls, shown);
+    check("header extremes", std::string(shown.values[0]) == "63" && std::string(shown.values[1]) == "rnd" &&
+                             std::string(shown.values[2]) == "+6" && std::string(shown.values[3]) == "on");
+    controls.value[2] = 0;
+    chords::display(page, controls, shown);
+    check("negative voicing", std::string(shown.values[2]) == "-6");
 
     if (failures) std::printf("%d failures\n", failures);
     return failures ? 1 : 0;

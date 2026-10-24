@@ -70,6 +70,8 @@ def configuration():
         elif m.kind != 'player':
             definitions[m.prefix + '_engine_id'] = m.identity['engine']
             definitions[m.prefix + '_page_id'] = m.identity['page']
+        elif 'page' in m.identity:
+            definitions[m.prefix + '_page_id'] = m.identity['page']
     return profile, machines, definitions
 
 
@@ -273,8 +275,9 @@ def compile_collection(directory, toolchain, compiler, profile, machines, defini
                 return cxx(RUNTIME_CXX, obj)
             if step == 'startup':
                 prefixes = [x.prefix for x in by_kind(machines, 'synth', 'sample')]
+                pages = [x.prefix for x in by_kind(machines, 'player') if x.display == 'player']
                 return cxx(str(generate_startup(folder, prefixes, [x.prefix for x in effects],
-                                                [x.prefix for x in sample_engines])), obj)
+                                                [x.prefix for x in sample_engines], pages)), obj)
             if (ROOT / TEMPLATES / (step + '.cpp')).is_file():
                 return cxx(TEMPLATES + step + '.cpp', obj)
             return assemble_unit(ROOT / TEMPLATES / (step + '.s'), obj)
@@ -503,6 +506,11 @@ def check_module(directory, tools, profile, machines):
     return module, sizes, patch_profile, hooks, stack, usage
 
 
+def player_page_ids(prefix):
+    """A player page's artwork IDs: 24 dots, then the text line."""
+    return [f'{prefix}_dot_{i}' for i in range(24)] + [f'{prefix}_text']
+
+
 def drawing_ids(prefix, display):
     """Artwork IDs of a drawing display: its nodes (the first are the mutable paths), then its palette."""
     return ([f'{prefix}_node_{i}' for i in range(display['nodes'])] +
@@ -565,8 +573,21 @@ def validate_panel(m, fragment=None):
         require(all(re.fullmatch(r'#[0-9A-Fa-f]{6}', by_id[name].get(k)) for k in ('fill', 'stroke')),
                 'Palette donors need #RRGGBB fill and stroke: ' + name)
 
-    display = m.definition['resources']['display']
-    if m.display == 'drawing':
+    if m.display == 'player':
+        # A player page: dots that show or hide, and the line its text replaces.
+        names = player_page_ids(m.prefix)
+        translate = r'matrix\(1 0 0 1 (%s) (%s)\)' % (NUMBER, NUMBER)
+        for name in names[:-1]:
+            visible(name)
+            require(re.fullmatch(translate, by_id[name].get('transform', '')),
+                    'Player page dots need transform="matrix(1 0 0 1 x y)": ' + name)
+        line = by_id.get(names[-1])
+        require(line is not None and line.tag == 'text' and re.fullmatch(translate, line.get('transform', '')),
+                'Player page line must be a text node with transform="matrix(1 0 0 1 x y)"')
+    display = m.definition['resources'].get('display')
+    if m.display == 'player':
+        pass
+    elif m.display == 'drawing':
         # Palette entries donate paint.
         ids = drawing_ids(m.prefix, display)
         bound, palette = ids[:display['nodes']], ids[display['nodes']:]

@@ -11,7 +11,8 @@ from tooling import adapters
 from tooling.formats import ldr, mapped_offset
 from tooling.pipeline import read
 from tooling.machines import check_identity, discovered, machine
-from tooling.native import extend_catalog
+from tooling.native import extend_catalog, validate_panel
+from tooling.startup import render
 from tooling.pipeline import config
 from test_sample_services import HOST_CXX
 
@@ -69,9 +70,42 @@ class Identity(unittest.TestCase):
     def test_player_types_avoid_stock_values(self):
         rules = config()['identities']
         self.assertEqual(check_identity(rules, 'player', {'player': 6}), {'player': 6})
-        for value in ({'player': 4}, {'player': 5}, {'player': 32}, {'player': 6, 'page': 44}, {'engine': 6}):
+        self.assertEqual(check_identity(rules, 'player', {'player': 6, 'page': 84}), {'player': 6, 'page': 84})
+        for value in ({'player': 4}, {'player': 5}, {'player': 32}, {'player': 6, 'page': 46}, {'player': 6, 'page': 81},
+                      {'player': 6, 'page': 128}, {'engine': 6}, {'player': 6, 'page': 84, 'engine': 1}):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 check_identity(rules, 'player', value)
+
+
+class Page(unittest.TestCase):
+    def test_page_unit_registers_and_binds_the_artwork(self):
+        m = machine('chords')
+        self.assertEqual(m.display, 'player')
+        with tempfile.TemporaryDirectory() as directory:
+            text = adapters.generate_player_object(directory, m).read_text(encoding='utf-8')
+        self.assertNotIn('@', text)
+        self.assertIn('int chords_screen_register()', text)
+        self.assertIn('"chords_dot_23",', text)
+        self.assertIn('"chords_text",', text)
+        self.assertIn('{"str", "dir", "voi", "spr"}', text)
+        self.assertIn('chords_player_vtable, chords_page_id, chords_screen_ready}', text)
+
+    def test_startup_registers_player_pages_on_the_gui_role(self):
+        source = render(['synth'], [], [], ['chords'])
+        screen = source[source.index('void sdk_startup_screen()'):source.index('// The stock catalog')]
+        self.assertIn('chords_screen_register();', screen)
+        with self.assertRaises(ValueError):
+            render(['chords'], [], [], ['chords'])
+
+    def test_artwork_needs_every_dot_and_the_line(self):
+        m = machine('chords')
+        fragment = (m.root / 'panel.svg.fragment').read_bytes()
+        validate_panel(m, fragment)
+        for broken in (fragment.replace(b'id="chords_dot_23"', b'id="chords_dot_x"'),
+                       fragment.replace(b'id="chords_text"', b'id="chords_line"'),
+                       fragment.replace(b'<circle id="chords_dot_0" transform="matrix(1 0 0 1', b'<circle id="chords_dot_0" transform="matrix(2 0 0 1')):
+            with self.subTest(), self.assertRaises(ValueError):
+                validate_panel(m, broken)
 
 
 @unittest.skipUnless(HOST_CXX, 'No working host C++ compiler (set OPXY_TEST_HOST_CXX)')

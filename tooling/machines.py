@@ -64,13 +64,16 @@ def check_identity(rules, kind, value):
     Engines take a free entry of the relocated table, never the stock "none" value; a
     synth draws its own page above the stock "none" page, a sample engine an ID only
     the relocated table holds and a stock sample page, an effect a free FX ID on the FX page,
-    a player a type stock does not use, shown on the stock Maestro page.
+    a player a type stock does not use, shown on its own relocated page or the stock Maestro page.
     """
     require(isinstance(value, dict), 'machine.json needs an identity')
     if kind == 'player':
-        require(set(value) == {'player'} and type(value['player']) is int, 'Unexpected identity fields')
+        require(set(value) in ({'player'}, {'player', 'page'}) and all(type(v) is int for v in value.values()),
+                'Unexpected identity fields')
         require(value['player'] in rules['players'], 'Players use a type stock leaves unused')
-        return {'player': value['player']}
+        require('page' not in value or rules['page_none'] < value['page'] < rules['pages'],
+                'A player with its own page needs a relocated page')
+        return dict(value)
     slot = 'effect' if kind == 'effect' else 'engine'
     require(set(value) == {slot, 'page'}, 'Unexpected identity fields')
     number, page = value[slot], value['page']
@@ -118,8 +121,10 @@ def machine(identity):
         dry_parameter = matches[0]
         require(definition['parameters'][dry_parameter]['mapping'] ==
                 dict(kind='linear', minimum=0, maximum=1), 'dryParameter must map linearly from 0 to 1')
-    # A synth draws its own screen; sample engines, effects and players use a stock page.
+    # A synth draws its own screen, as may a player; sample engines and effects use a stock page.
     display = definition['resources']['display']['kind'] if kind == 'synth' else 'stock'
+    if kind == 'player' and 'page' in value['identity']:
+        display = 'player'
     # The native plan compiles extra translation units only into synths.
     if kind != 'synth':
         require(not sources and not includes, 'Sample engines, effects and players compile one sample.cpp, fx.cpp or player.cpp')
