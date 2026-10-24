@@ -52,8 +52,8 @@ extensions_sample_note_region:
     RTS;
 .size extensions_sample_note_region, .-extensions_sample_note_region
 
-/* Entry of stock's drum key lookup (R0 = track, R1 = key). sdk_sample_key
- * returns the canonical pad of an owned drum page, or -1 to continue stock
+/* Entry of stock's region key lookup (R0 = track, R1 = key). sdk_sample_key
+ * returns zero for singleSample, a drum page's canonical pad, or -1 for stock
  * with every register as it arrived. */
 .global extensions_sample_key
 .type extensions_sample_key, STT_FUNC

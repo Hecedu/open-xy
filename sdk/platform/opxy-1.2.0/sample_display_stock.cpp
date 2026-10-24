@@ -45,7 +45,11 @@ extern "C" bool opxy_sample_display(opxy::u32 track, opxy::SampleDisplay* out) {
     if (path) while (length < 96 && path[length]) ++length;
     const u32 sample_key = length && length < 96 ? sdk_sample_cache_stock_hash(path) : 0;
     const bool ready = sdk_sample_display_read(track, sample_key, out);
-    out->voices = machine->display_voices ? machine->display_voices(track) : 0;
+    // Stock GUI note gates: 8d593b70/7c publishes note-on; 8d5937ea and
+    // 8d59384c clear note-off/all-off. The stock keyboard painter reads the
+    // same getter at 8d525dbc. Audio-role adapter globals are not GUI telemetry.
+    for (u32 note = 0; note < 128; ++note)
+        out->active_notes += stock<u32(u32, u32)>(0x8d5b5e88)(track, note) != 0;
     if (ready && raw) {
         const SampleRegion region = sample_gui_region(raw);
         out->begin = region.begin < out->frames ? region.begin : out->frames;

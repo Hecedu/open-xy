@@ -30,11 +30,8 @@ struct Slot {
     bool started;
 };
 static Slot voices[@CAPACITY@];
-// Audio publishes only the track token, never contributor voice state.
-static volatile opxy::u32 live_tracks[@CAPACITY@];
 static Slot* active[@CHOKE@ ? 8 : 1][@CHOKE@ ? 128 : 1];
 static void clear_owner(Slot* slot) {
-    live_tracks[slot - voices] = 0;
     if (@CHOKE@ && slot->started && slot->track < 8 && slot->key < 128 &&
         active[slot->track][slot->key] == slot) active[slot->track][slot->key] = nullptr;
 }
@@ -121,11 +118,9 @@ static int start(void* self, opxy::u32 key) {
     slot->drum_transpose = keyed && @DRUM_KEYS@ ? opxy::i32(key) - opxy::i32(slot->key) : 0;
     if (slot->started) {
         if (@CHOKE@ && keyed) {
-            if (Slot* prior = active[slot->track][slot->key]) live_tracks[prior - voices] = 0;
             active[slot->track][slot->key] = slot;
         }
         @NAMESPACE@::start(slot->voice);
-        if (slot->track < 8) live_tracks[slot - voices] = slot->track + 1;
     }
     return 0;
 }
@@ -135,13 +130,6 @@ static int destroy(void* self) {
     slot->started = false;
     slot->analysis = nullptr;
     return 0;
-}
-opxy::u32 @PREFIX@_display_voices(opxy::u32 track) __asm__("@PREFIX@_display_voices");
-opxy::u32 @PREFIX@_display_voices(opxy::u32 track) {
-    if (track >= 8) return 0;
-    opxy::u32 count = 0;
-    for (opxy::u32 i = 0; i < @CAPACITY@; ++i) count += live_tracks[i] == track + 1;
-    return count;
 }
 void* @PREFIX@_factory(opxy::u32 index, opxy::u32 track) {
     if (index >= @CAPACITY@) return nullptr;
