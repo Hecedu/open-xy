@@ -310,6 +310,10 @@ def compile_collection(directory, toolchain, compiler, profile, machines, defini
         total = limit + int(overflow.group(1)) if overflow else sum(sum(share.values()) for share in usage.values())
         raise ValueError('Machines exceed the shared module memory, ' + memory_summary(usage, total, limit)) from None
     module, sizes, patch_profile, hooks, stack, usage = check_module(directory, tools, profile, machines)
+    from .cpu_static import inventory
+    _sections, symbols = elf32(read(directory / 'module.elf'))
+    cpu_static = inventory((directory / 'disassembly.txt').read_text(), module,
+                           profile['module_base'], symbols, machines)
     require(provenance(machines) == before, 'Sources changed during compilation')
     report = dict(schema=1, target=TARGET, status='experimental-unqualified', sources=before,
                   host=host_platform(), tools=host_pins('tools')[0], compiler=host_pins('compiler')[0],
@@ -319,7 +323,7 @@ def compile_collection(directory, toolchain, compiler, profile, machines, defini
                   module_sha256=sha(module), elf_sha256=sha(read(directory / 'module.elf')), hooks=hooks,
                   objects=object_owners(machines, profile), patches=patch_profile['patches'],
                   services=sorted(active_services(profile, (m.kind for m in machines))), device_operations=False,
-                  hardware_tested=False, cpu_timing_measured=False)
+                  hardware_tested=False, cpu_timing_measured=False, cpu_static=cpu_static)
     save_json(directory / 'compile-report.json', report)
     return bytes(module), report, patch_profile
 
@@ -788,7 +792,11 @@ def main(argv=None, command=None):
             print('Machine numbers: ' + str(output / 'layout.json') + ' (pass it as --layout to your next build)')
         if command != 'verify':
             from .cpu import native_notice
+            from .cpu_static import notice
             print(native_notice(machines))
+            if command == 'build':
+                report = document(output / 'analysis/compile-report.json')
+            print(notice(report['cpu_static']))
         return 0
     except (ValueError, OSError, KeyError, ET.ParseError, subprocess.SubprocessError) as error:
         print('ERROR: ' + str(error), file=sys.stderr)

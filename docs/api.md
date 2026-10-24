@@ -95,7 +95,30 @@ These screening thresholds are not the 24-note cycle allocation. Test on a
 device at the intended polyphony, settings and sample layout, including effects
 and release tails. A host estimate can materially understate native cost.
 Instruction packets also differ from cycles because of pipeline and memory
-stalls. Common sources of unexpected cost include:
+stalls.
+
+Native `compile` and `build` also inspect the linked audio callbacks and print
+the largest straight-line hardware loop they find. `cpu_static` in
+`compile-report.json` records loop addresses, packet counts and unresolved
+transfers; inspect `disassembly.txt` alongside it (`analysis/` inside a package).
+Parallel `||` operations form one issue packet; byte continuation lines do not
+count again. These are loop inventories, not a ranking of hot paths. The SDK
+does not infer trip counts, branch probabilities or a worst-case cost from
+code size. Indirect calls can hide additional work, and loops containing calls,
+branches or nested loops are excluded from the constant-per-iteration list.
+
+For a loop that runs once per output frame per internal voice, multiply its
+packet count by 64 and by the maximum simultaneous internal voices **within
+one note**. Then add setup, grain spawning, control updates, callees and final
+mixing; multiply the whole note cost by sounding notes, including releases.
+Do not sum mutually exclusive mono/stereo paths or multiply channels twice if
+the loop already processes both. Verify bounds at combined parameter extremes:
+short grains can increase spawning, and pitch, scan, reverse, trim and sample
+layout can change work. Preserve audio reference tests when moving boundary
+checks or invariant arithmetic out of the sample loop. Confirm improvements
+in the newly compiled instructions, then test the exact image on hardware.
+
+Common sources of unexpected cost include:
 
 - **Division** has no hardware instruction and costs tens of cycles on the
   device. Divide once per block, or use a table or a reciprocal.

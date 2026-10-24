@@ -70,3 +70,8 @@ depth is above 0. Output is int16 scaled to half-scale Q31.
 Five models (SAW_COMB, PLUK, BOWD, BLOW, FLUT) lease an 8,200-byte delay line
 from a shared pool of 16. When the pool is full the oldest lease is stolen and
 its voice falls silent until restruck.
+
+Run `python sdk.py test --machine machines/macroosc` for machine checks and CPU screening.
+Native `compile` / `build` output adds compiled loop packet counts, not device
+cycles. Follow the [CPU review method](../../docs/api.md#cpu) before setting a
+polyphony target; include every internal voice and release tail.

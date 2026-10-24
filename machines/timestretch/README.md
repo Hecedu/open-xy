@@ -74,3 +74,8 @@ declares stereo output, same-key choke, pad settings with drum controls, and a
   precede initial playback.
 
 See the [upstream revision and AGPL notices](vendor/README.md).
+
+Run `python sdk.py test --machine machines/timestretch` for machine checks and CPU screening.
+Native `compile` / `build` output adds compiled loop packet counts, not device
+cycles. Follow the [CPU review method](../../docs/api.md#cpu) before setting a
+polyphony target; include every internal voice and release tail.

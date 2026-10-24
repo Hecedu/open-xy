@@ -27,3 +27,8 @@ python sdk.py check
 `orbit.hpp` hold lookup data, and `machine.json` declares the kind and identity. Shared adapters and host runners live in the SDK.
 
 See [native builds](../../docs/build.md) to put it on the device.
+
+Run `python sdk.py test --machine machines/fm2op` for machine checks and CPU screening.
+Native `compile` / `build` output adds compiled loop packet counts, not device
+cycles. Follow the [CPU review method](../../docs/api.md#cpu) before setting a
+polyphony target; include every internal voice and release tail.

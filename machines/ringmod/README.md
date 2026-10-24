@@ -41,3 +41,8 @@ There is no allocation, I/O or gain normalization in the callback.
 The optional `dryParameter` declaration delegates Dry to the stock mixer.
 The DSP writes only the modulated return and never adds clean signal itself.
 See [native builds](../../docs/build.md) for collection verification.
+
+Run `python sdk.py test --machine machines/ringmod` for machine checks and CPU screening.
+Native `compile` / `build` output adds compiled loop packet counts, not device
+cycles. Follow the [CPU review method](../../docs/api.md#cpu) before setting a
+polyphony target; include every internal voice and release tail.

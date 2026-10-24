@@ -84,6 +84,11 @@ It also prints the [CPU planning allocation](api.md#cpu) and a warning that
 successful compilation does not qualify real-time performance. `sdk.py test`
 provides host cost estimates for supported kinds and explicitly reports
 unestimated sample-engine costs.
+`compile` and `build` also print a compiled audio-loop inventory. The
+`cpu_static` field in `compile-report.json` identifies constant packet counts
+per loop iteration; repetition counts and per-note cycle costs stay unknown.
+Use the [CPU review method](api.md#cpu) to account for every internal voice
+and block overhead before choosing a polyphony target.
 The SDK builds a machine whose `sdk` has its major version and an equal or
 older minor version; a machine's ID must differ from the bundled machines'.
 

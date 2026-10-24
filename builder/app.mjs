@@ -175,6 +175,7 @@ async function inspect(id) {
   const own = kit.objects.filter(o => o.owner === id).flatMap(o => o.sections.filter(s => s.group));
   facts($('machine-facts'), {'Code and data': kib(own.filter(s => s.type !== 8).reduce((n, s) => n + s.size, 0)),
     'Working memory': kib(own.filter(s => s.type === 8).reduce((n, s) => n + s.size, 0)),
+    'CPU / polyphony': 'Not measured on OP-XY; 24 simultaneous notes are not qualified. Each note includes all internal grains or layers, plus its release tail.',
     // The numbers this selection gives it, or those it asks for.
     ...(own => ({[m.kind === 'effect' ? 'Effect number' : 'Engine number']: own.effect ?? own.engine, 'Page': own.page}))(
       linked?.numbers?.[m.id] ?? m.identity),

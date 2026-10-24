@@ -229,7 +229,12 @@ def planning_notice():
     return ('CPU planning: at 400 MHz / 44.1 kHz, a 64-frame block has about 580,500 cycles. '
             'For 24 simultaneous sounding notes and a provisional 50% reserve for other work, '
             'target about 12,000 cycles per note/block, INCLUDING all grains/layers and release tails. '
-            'Host instruction-equivalents are not device cycles; 24-note polyphony requires device validation.')
+            'Host instruction-equivalents are not device cycles; 24-note polyphony requires device validation.\n'
+            'CPU review: count compiled loop packets x actual iterations x simultaneous grains/layers per note; '
+            'add setup, spawn/control work, mixing, release tails and callees. Count parallel || operations as '
+            'one issue packet, not separate cycles. Check stereo, pitch/scan extremes, shortest grains and '
+            'simultaneous parameter extremes. Branches, cache/memory stalls and stock work require headroom; '
+            'a static loop count alone is not a worst-case per-note estimate.')
 
 
 def native_notice(machines):
