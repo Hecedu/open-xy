@@ -34,9 +34,9 @@ The [firmware contract](abi-1.2.0.md) explains where each rule comes from.
 
 ## Memory and limits
 
-Every selected machine and the SDK share **one 2044 KiB module region**: code,
+Every selected machine and the SDK share **one 2040 KiB module region**: code,
 constant data and zero-initialized state together. It is the 2 MiB the
-firmware reserves from its heap, minus 4 KiB of relocated stock tables. There
+firmware reserves from its heap, minus 8 KiB of relocated stock tables. There
 is no per-machine allowance: a build that does not fit names each machine's
 share, and `sdk.py compile` and the builder's memory meter report the same
 figures. State usually dominates, since a synth's voice pool is
@@ -44,7 +44,7 @@ figures. State usually dominates, since a synth's voice pool is
 
 | Limit | Value | Why |
 | --- | --- | --- |
-| Module memory | 2044 KiB for the whole collection | Firmware heap reservation minus the relocated tables |
+| Module memory | 2040 KiB for the whole collection | Firmware heap reservation minus the relocated tables |
 | Voices | 1..256 per machine | Stock voice indices |
 | Effect state | 476 bytes | The 480-byte stock FX slot minus its object header |
 | Synth controls | 4 positions, at most 8 parameters | The stock four-knob page and eight-word parameter vector |
@@ -355,9 +355,10 @@ source dry mixer, as described under [effects](#effects).
 | --- | --- | --- |
 | `synth` | 1..62, except the stock sentinel 33 and the IDs stock registers (2–4, 6, 7, 18–20, 22, 29–32) | Its own screen: 82..127 |
 | `sample` | 34..62 | Stock sample page 2 or 7; `padSettings` requires 7 |
-| `effect` | A free stock FX ID: 1–4, 6–8 or 11 | Stock FX page 21 |
+| `effect` | 1–4, 6–8, 11 or 20..62 | Stock FX page 21 |
 
-IDs above 32 and pages above 81 exist only in the relocated stock tables.
+Engine IDs above 32, effect IDs above 18 and pages above 81 exist only in the
+relocated stock tables.
 Names and IDs are part of saved presets and projects, so they never change once
 published. The SDK also rejects conflicts within the collection. Generated
 adapters check record/name ownership and screen readiness before catalog

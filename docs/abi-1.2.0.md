@@ -29,7 +29,7 @@ version is rejected. The output differs from stock in exactly these places:
 | Sample analysis | 10 | Schedules bounded background work, snapshots committed assignments, releases cached analysis and reports progress |
 | Drum-page services | 14 | Routes controls, octave publication, assignment and waveform projection for machines declaring pad settings or drum controls |
 | Recorder | 6 | Recognizes owned sample engines when the stock recorder selects, releases and saves a pad, and assigns completed recordings to owned pads |
-| Relocated tables | 13 | Moves the engine records (63) and screen slots (128) into the last 4 KiB of the reservation |
+| Relocated tables | 22 | Moves the effect records (63), engine records (63) and screen slots (128) into the last 8 KiB of the reservation |
 | Screen order | 1 | Paints a selected owned synth page before stock overlays |
 | Synth and effect controls | 3 | Lets an encoder press on an owned synth's page select an alternate parameter, which its turns then edit; scales fine turns on owned synth and send-effect pages |
 | Startup label | 1 | Shows `OPEN 0.0.1-1.2.0` at boot through the stock startup text renderer |
@@ -70,11 +70,12 @@ and then completes the stock epilogue it replaced.
 | --- | --- | --- | --- |
 | Engines | 63 (relocated) | 33 (stock "none"), IDs stock registers | IDs above 32 exist only with the relocated tables |
 | Screen pages | 128 (relocated) | 81 (stock "none") | Sample engines show stock page 2 or 7 instead |
-| Effects | 19 (stock) | IDs stock registers | Free IDs: 1–4, 6–8, 11; all effects use page 21 |
+| Effects | 63 (relocated) | 19 (stock "none"), IDs stock registers | Free IDs: 1–4, 6–8, 11, 20–62; all effects use page 21 |
 
 Presets store the engine **name**. Projects store the engine **number**.
 Firmware without the relocated tables opens a project that uses an engine above
-32 with Prism (18) instead. Published IDs therefore never change.
+32 with Prism (18) instead. Its send-slot setter (`0x8d50e0c4`) rejects effect types
+above 18. Published IDs therefore never change.
 
 ## Synth voices
 
@@ -241,7 +242,9 @@ the canonical pad; the raw note minus the canonical pad is `drum_transpose`.
 
 ## Send effects
 
-Effects live in a separate 19-entry registry. Stock constructs an effect in
+Effects live in a separate registry (19 stock entries, 63 relocated). Stock
+registers send effects and the per-track filter types in it; the filter setter
+keeps the stock bound, so IDs above 18 are send effects only. Stock constructs an effect in
 place inside the FX slot's **480-byte** storage on the audio thread, calls
 `init`, then `process(left, right, parameters)` once per 64-sample block on
 in-place stereo buffers. **No destructor ever runs**, so an effect may hold no

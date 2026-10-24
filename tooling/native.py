@@ -467,9 +467,9 @@ def check_module(directory, tools, profile, machines):
     if sizes['allocated_span_bytes'] > limit:
         raise ValueError('Machines exceed the shared module memory, ' +
                          memory_summary(usage, sizes['allocated_span_bytes'], limit))
-    slots, records = symbols['__stock_screen_slots']['value'], symbols['__stock_engine_records']['value']
-    require(slots == stock_tables.SCREEN_SLOTS and records == stock_tables.ENGINE_RECORDS and
-            records + stock_tables.ENGINE_COUNT * stock_tables.RECORD_BYTES <= low + profile['reserved_bytes'],
+    placed = [symbols['__stock_%s' % t.name.replace(' ', '_')]['value'] for t in stock_tables.TABLES]
+    require(placed == [t.address for t in stock_tables.TABLES] and
+            max(t.end for t in stock_tables.TABLES) <= low + profile['reserved_bytes'],
             'Relocated tables outside the reserved tail or overlapping the module')
     patch_profile = copy.deepcopy(profile)
     hooks = {}
