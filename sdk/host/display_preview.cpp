@@ -2,8 +2,12 @@
 #include "display_binding.hpp"
 #include <opxy/sample_display.hpp>
 // Browser audio does not yet load samples. Report unavailable data explicitly.
-extern "C" bool opxy_sample_display(opxy::u32, opxy::SampleDisplay* output) {
-    if (output) *output = opxy::SampleDisplay{};
+static opxy::u32 preview_activity;
+extern "C" bool opxy_sample_display(opxy::u32 track, opxy::SampleDisplay* output) {
+    if (output) {
+        *output = opxy::SampleDisplay{};
+        output->voices = track == 0 ? preview_activity : 0;
+    }
     return false;
 }
 namespace {
@@ -12,6 +16,7 @@ opxy::draw::Input input;
 opxy::binding::Frame frame;
 }
 extern "C" {
+void opxy_display_activity(opxy::u32 voices) { preview_activity = voices <= 256 ? voices : 0; }
 opxy::u32 opxy_display_abi() { return 1; }
 opxy::u32 opxy_display_state_bytes() { return sizeof(state); }
 opxy::u32 opxy_display_input_bytes() { return sizeof(input); }
