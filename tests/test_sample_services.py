@@ -1,5 +1,6 @@
 """Native qualification executes the real SDK services with host boundary doubles."""
 import os
+import shutil
 from pathlib import Path
 import subprocess
 import tempfile
@@ -35,9 +36,10 @@ class SampleServices(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix='sample-services-') as folder:
             binary = Path(folder) / (name + ('.exe' if os.name == 'nt' else ''))
             hidden = dict(creationflags=subprocess.CREATE_NO_WINDOW) if os.name == 'nt' else {}
-            if name == 'sample_callbacks':
-                probe = replace(machine('timestretch'), id='probe', identity=dict(engine=46, page=7))
-                generate_sample_callbacks(folder, [probe])
+            if name in ('sample_callbacks', 'presets'):
+                if name == 'sample_callbacks':
+                    probe = replace(machine('timestretch'), id='probe', identity=dict(engine=46, page=7))
+                    generate_sample_callbacks(folder, [probe])
                 # Exercise the real tempo readers and assignment bridge with
                 # host addresses standing in for stock functions and globals.
                 stock = (ROOT / 'sdk/platform/opxy-1.2.0/stock.hpp').read_text()
@@ -47,6 +49,9 @@ class SampleServices(unittest.TestCase):
                     stock = stock.replace('reinterpret_cast<' + pointer + '>(address)',
                                           'reinterpret_cast<' + pointer + '>(host_stock_address(address))')
                 (Path(folder) / 'stock.hpp').write_text(stock)
+                if name == 'presets':  # beside the host stock.hpp, so their includes reach it
+                    for unit in ('presets.cpp', 'registration.hpp'):
+                        shutil.copy(ROOT / 'sdk/platform/opxy-1.2.0' / unit, Path(folder) / unit)
             if name == 'screen_order':
                 generate_screen_order(folder)
             if name == 'startup':
@@ -69,6 +74,9 @@ class SampleServices(unittest.TestCase):
 
     def test_saved_settings_tuning_and_trim_bounds(self):
         self.run_fixture("stock_sample")
+
+    def test_preset_scan_hides_factory_presets_of_engines_not_installed(self):
+        self.run_fixture('presets')
 
     def test_callbacks_work_for_another_engine_and_preserve_stock_fields(self):
         self.run_fixture('sample_callbacks', ('sdk/platform/opxy-1.2.0/sample_machines.cpp',))

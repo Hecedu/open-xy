@@ -32,6 +32,7 @@ version is rejected. The output differs from stock in exactly these places:
 | Relocated tables | 13 | Moves the engine records (63) and screen slots (128) into the last 4 KiB of the reservation |
 | Screen order | 1 | Paints a selected owned synth page before stock overlays |
 | Synth and effect controls | 3 | Lets an encoder press on an owned synth's page select an alternate parameter, which its turns then edit; scales fine turns on owned synth and send-effect pages |
+| Preset scan | 1 | Hides factory presets whose engine the build does not install ([presets](#presets)) |
 | Startup label | 1 | Shows `OPEN <version>-1.2.0` at boot, `<version>` from [`VERSION`](../VERSION), through the stock startup text renderer |
 | Module | 1 record | One loader block holding the linked module |
 
@@ -244,6 +245,20 @@ mapper and publishes the octave in a per-track word; the octave setter also
 publishes each change. Audio maps notes with that snapshot and the same
 integer mapping, without calling GUI project or pattern getters. Choke uses
 the canonical pad; the raw note minus the canonical pad is `drum_transpose`.
+
+## Presets
+
+At boot, stock scans `content/presets` (factory presets, which the device
+never deletes or moves) and then `/presets` (the user's). For each preset it
+reads the top-level `"type"` at `8d4eeab6`, and lists only presets with one.
+The SDK hook ([`presets.cpp`](../sdk/platform/opxy-1.2.0/presets.cpp)) calls
+the stock reader unchanged and then, on the factory pass, empties the type
+when no engine of that name is installed: neither stock's resolver knows it
+nor is it one of the build's machines. Such a preset, for example the default
+preset of a machine a later build left out, is then not listed; its file stays
+on the device. Until stock's engine name map exists, every name counts as
+installed. User presets stay listed: stock deletes a user folder that lists no
+presets, so hiding them could delete them.
 
 ## Send effects
 
