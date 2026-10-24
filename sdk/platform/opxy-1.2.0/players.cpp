@@ -62,7 +62,7 @@ char* bytes(void* object) { return static_cast<char*>(object); }
 const Player* owned(u32 type) {
     for (u32 i = 0; i < sdk_player_count; ++i) {
         const Player* p = sdk_players[i].player();
-        if (p && p->type == type) return p;
+        if (p && p->type() == type) return p;
     }
     return nullptr;
 }
@@ -155,7 +155,7 @@ const char* sdk_player_name(u32 type) {
 u32 sdk_player_id(const void* name) {
     for (u32 i = 0; i < sdk_player_count; ++i) {
         const Player* p = sdk_players[i].player();
-        if (p && equal(static_cast<const registry::StockString*>(name), p->name)) return p->type;
+        if (p && equal(static_cast<const registry::StockString*>(name), p->name)) return p->type();
     }
     return kContinue;
 }

@@ -8,6 +8,8 @@
 #include "stock.hpp"
 extern "C" {
 const opxy::platform::Player* @PREFIX@_player() __asm__("@PREFIX@_player");
+// The stock type: an absolute symbol the linker supplies.
+extern const char @PREFIX@_player_id[] __asm__("@PREFIX@_player_id");
 @PAGE_DECLARATIONS@
 }
 using State = @NAMESPACE@::State;
@@ -20,7 +22,7 @@ State& state(void* object) { return *static_cast<State*>(opxy::platform::player_
 extern "C" {
 extern const void* const @PREFIX@_player_vtable[16];
 // +0x08: the stock player type.
-static u32 type(void*) { return @TYPE@; }
+static u32 type(void*) { return static_cast<u32>(reinterpret_cast<__UINTPTR_TYPE__>(@PREFIX@_player_id)); }
 // +0x14: note-on (object, note, 0, flag, velocity) from the sequencer, live
 // or played back. Returning 1 takes the note; 0 lets the instrument play it.
 static u32 press(void* object, u32 note, u32, u32, u32 velocity) {
@@ -46,6 +48,6 @@ const void* const @PREFIX@_player_vtable[16] = {
     reinterpret_cast<const void*>(0x8d57c47c), reinterpret_cast<const void*>(0x8d57c470)
 };
 }
-static const opxy::platform::Player player = {@TYPE@, "@NAME@", @PREFIX@_player_vtable, @PAGE@, @PAGE_READY@};
+static const opxy::platform::Player player = {@PREFIX@_player_id, "@NAME@", @PREFIX@_player_vtable, @PAGE@, @PAGE_READY@};
 const opxy::platform::Player* @PREFIX@_player() { return &player; }
 @PAGE_UNIT@

@@ -381,7 +381,7 @@ def generate_fx_object(directory, m):
 def generate_player_object(directory, m):
     """A player's stock object methods around its press and release, and its own page when it has one."""
     from .native import player_page_ids
-    values = dict(PREFIX=m.prefix, NAMESPACE=m.definition['id'], NAME=m.native_name, TYPE=m.identity['player'],
+    values = dict(PREFIX=m.prefix, NAMESPACE=m.definition['id'], NAME=m.native_name,
                   PAGE='nullptr', PAGE_READY='nullptr', PAGE_DECLARATIONS='', PAGE_UNIT='')
     if m.display == 'player':
         p = m.prefix

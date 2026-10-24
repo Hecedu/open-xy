@@ -8,11 +8,12 @@ namespace opxy { namespace platform {
 // A linked player. In a browser kit an unselected player's lookup resolves to
 // a function returning null.
 struct Player {
-    u32 type;
+    const char* type_id;     // absolute symbol: the player's stock type, supplied at link time
     const char* name;
     const void* const* vtable;
     const char* page;        // absolute symbol: its own page ID, or null without one
     int (*page_ready)();     // 1 while that page is in its slot
+    u32 type() const { return static_cast<u32>(reinterpret_cast<__UINTPTR_TYPE__>(type_id)); }
 };
 struct Record;
 struct Screen;

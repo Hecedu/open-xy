@@ -1,4 +1,5 @@
 """Note players: generated adapters, catalog entries, identities and each player's own vectors."""
+from dataclasses import replace
 import json
 import os
 from pathlib import Path
@@ -41,9 +42,17 @@ class Generation(unittest.TestCase):
         m = machine('chords')
         with tempfile.TemporaryDirectory() as directory:
             text = adapters.generate_player_object(directory, m).read_text(encoding='utf-8')
-        self.assertIn('static u32 type(void*) { return %d; }' % m.identity['player'], text)
+        # The type is the chords_player_id symbol, which the linker supplies.
+        self.assertIn('return static_cast<u32>(reinterpret_cast<__UINTPTR_TYPE__>(chords_player_id));', text)
         self.assertIn('"chords"', text)
         self.assertNotIn('@', text)
+
+    def test_object_adapter_does_not_depend_on_the_player_numbers(self):
+        m = machine('chords')
+        other = replace(m, identity=dict(player=31 if m.identity['player'] != 31 else 30, page=127))
+        with tempfile.TemporaryDirectory() as first, tempfile.TemporaryDirectory() as second:
+            self.assertEqual(adapters.generate_player_object(first, m).read_bytes(),
+                             adapters.generate_player_object(second, other).read_bytes())
 
     def test_table_lists_only_players(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -70,8 +70,10 @@ def configuration():
         elif m.kind != 'player':
             definitions[m.prefix + '_engine_id'] = m.identity['engine']
             definitions[m.prefix + '_page_id'] = m.identity['page']
-        elif 'page' in m.identity:
-            definitions[m.prefix + '_page_id'] = m.identity['page']
+        else:
+            definitions[m.prefix + '_player_id'] = m.identity['player']
+            if 'page' in m.identity:
+                definitions[m.prefix + '_page_id'] = m.identity['page']
     return profile, machines, definitions
 
 
