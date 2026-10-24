@@ -422,7 +422,7 @@ command-line packages install it as `content/presets/<id>/default.json`.
 The builder embeds the preset from the catalog's pinned commit, so installation
 does not fetch a moving branch or require another preset index. Existing SDK 1.0
 personal machines without the file still receive a generated init when built.
-User-saved sounds under `user/` are not changed.
+User-saved sounds are not changed.
 
 ### Identity
 

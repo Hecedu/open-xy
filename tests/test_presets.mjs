@@ -77,7 +77,7 @@ test('catalog defaults are required and reach nested MTP content folders unchang
   const original = structuredClone(m.defaultPreset);
   const files = await buildAssets(kit,[m.id],catalog,numbers);
   assert.deepEqual(JSON.parse(new TextDecoder().decode(files[presetPath(m)])), original);
-  const userPath = 'user/presets/my-sound.json', user = Uint8Array.of(7);
+  const userPath = 'presets/my-sound.json', user = Uint8Array.of(7);
   const {device,state} = fakeDevice({files: {[userPath]: user}}), mtp = new Device(device);
   await mtp.open();
   for (const [path, bytes] of Object.entries(files)) await mtp.send(path,bytes);
