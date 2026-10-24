@@ -1,4 +1,4 @@
-"""Exercise the actual bounded recording history without firmware or a device."""
+"""Exercise the bounded ghost pattern and capture adapter without a device."""
 import os
 from pathlib import Path
 import subprocess
@@ -50,7 +50,7 @@ class RecordingHistory(unittest.TestCase):
             ran = subprocess.run([str(binary)], capture_output=True, text=True, timeout=30, **hidden)
             self.assertEqual(ran.returncode, 0, ran.stdout + ran.stderr)
 
-    def test_rolling_time_context_and_note_lifetimes(self):
+    def test_ghost_pattern_replacement_context_and_note_lifetimes(self):
         self.run_fixture('recording_history')
 
     def test_double_tap_without_holds_chords_or_repeats(self):

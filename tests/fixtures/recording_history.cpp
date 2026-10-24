@@ -56,35 +56,51 @@ int main() {
     CHECK(h.note_on(0, 61, 91)); h.advance(399 * 256); h.note_off(61);
     CHECK(h.snapshot(notes, 120) == 2);
     CHECK(notes[0].position == 400 && notes[1].position == 0);
-    h.advance(256); CHECK(h.snapshot(notes, 120) == 2); // One loop is not a hard cutoff.
-    h.advance(240 * 256); CHECK(h.snapshot(notes, 120) == 1 && notes[0].pitch == 61);
-    h.advance(80 * 256); CHECK(h.size() == 0); // Silence ages notes out.
-    CHECK(h.note_on(0, 62, 92)); h.advance(0xffffffffu); CHECK(h.size() == 0);
+    h.advance(0xffffffffu); CHECK(h.snapshot(notes, 120) == 2);
+    CHECK(notes[0].length == 80 && notes[1].length == 399); // Silence keeps the take.
 
-    // A slightly early onset survives a capture at the following downbeat.
-    c = context(); h.sync(c, true);
+    // Two-page track: a silent first loop, early pickup into the next, then a
+    // late Stop after another wrap. Reaching for Stop must not erase step one.
+    c = context(); c.length = 32 * 480; h.sync(c, true);
+    h.advance((c.length - 12) * 256);
     CHECK(h.note_on(-12, 65, 97)); h.advance(40 * 256); h.note_off(65);
     h.advance((c.length - 28) * 256); // Age = one loop plus twelve ticks.
     CHECK(h.snapshot(notes, 120) == 1);
     CHECK(notes[0].position == -12 && notes[0].length == 40 && notes[0].velocity == 97);
-    h.advance(227 * 256); CHECK(h.size() == 1);
-    h.advance(256); CHECK(h.size() == 0); // Tolerance is bounded, even in silence.
-    CHECK(h.note_on(0, 65, 97)); h.advance((c.length + 100) * 256);
+    h.advance(4 * 480 * 256); h.sync(c, false);
+    CHECK(h.snapshot(notes, 120) == 1 && notes[0].position == -12);
+    h.sync(c, true); CHECK(h.size() == 0);
+    CHECK(h.note_on(0, 65, 97)); h.advance(0xffffffffu);
     CHECK(h.snapshot(notes, 120) == 1 && notes[0].length == c.length);
-    h.advance(140 * 256); CHECK(h.size() == 0);
+    h.note_off(65); h.clear();
 
-    // A full history retains the most recent bounded set; releases of evicted
-    // notes cannot damage later notes. Repeated passes remain bounded.
+    // Later playing updates nearby same-pitch notes, using stock's strict
+    // radius. Other pitches and a note exactly on the boundary survive.
+    CHECK(h.note_on(-12, 60, 80, 180)); h.advance(256); h.note_off(60);
+    CHECK(h.note_on(0, 60, 90, 180)); h.advance(512); h.note_off(60);
+    CHECK(h.note_on(1, 62, 91, 180)); h.note_off(62);
+    CHECK(h.note_on(180, 60, 92, 180)); h.note_off(60);
+    CHECK(h.snapshot(notes, 120) == 3 && notes[0].velocity == 90 && notes[0].length == 2);
+    CHECK(h.note_on(1, 60, 99, 180)); h.note_off(60);
+    CHECK(h.snapshot(notes, 120) == 2 && notes[0].pitch == 62 && notes[1].velocity == 99);
+
+    // Repeated loops update the ghost pattern rather than fill a raw-onset FIFO.
     c = context(); h.sync(c, true);
     for (unsigned i = 0; i < 10000; ++i) {
-        CHECK(h.note_on(i % c.length, i % 128, 100));
-        h.advance(256); h.note_off(i % 128);
-        CHECK(h.size() <= 120);
+        CHECK(h.note_on((i % 16) * 480, 60 + i % 4, 90 + i % 20, 180));
+        h.advance(256); h.note_off(60 + i % 4);
+        CHECK(h.size() <= 16);
     }
-    CHECK(h.snapshot(notes, 120) == 120);
-    CHECK(notes[0].position == static_cast<i32>(9880 % c.length) &&
-          notes[119].position == static_cast<i32>(9999 % c.length));
-    CHECK(notes[0].length == 1 && notes[119].length == 1);
+    CHECK(h.snapshot(notes, 120) == 16);
+    CHECK(notes[0].position == 0 && notes[15].position == 15 * 480);
+    CHECK(notes[0].velocity == 94 && notes[15].velocity == 109);
+    h.clear();
+    for (unsigned i = 0; i < 120; ++i) {
+        CHECK(h.note_on(0, i, 100, 180)); h.note_off(i);
+    }
+    CHECK(!h.note_on(480, 127, 90, 180));
+    CHECK(!h.note_on(0, 0, 90, 180)); // Stock rejects even a collision when full.
+    CHECK(h.snapshot(notes, 120) == 120 && notes[0].velocity == 100);
 
     h.clear();
     for (unsigned i = 0; i < 20; ++i) CHECK(h.note_on(0, 40 + i, 80));

@@ -25,7 +25,9 @@ void capture_note_on(u32 track, u32 pitch, u32 velocity) {
     capture_sync();
     tap.cancel(); // Live playing is another control, including the immediate key path.
     if (track != context.track || !context.eligible || !running) return;
-    history.note_on(capture_position(track), pitch, velocity);
+    const i32 radius = capture_collision_radius(track);
+    if (radius >= 0)
+        history.note_on(capture_position(track), pitch, velocity, static_cast<u32>(radius));
 }
 
 void capture_note_off(u32 track, u32 pitch) {

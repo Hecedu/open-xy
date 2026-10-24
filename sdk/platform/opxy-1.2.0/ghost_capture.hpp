@@ -16,6 +16,7 @@ void capture_control(u32 key, bool pressed, bool accepted, bool unmodified,
 RecordingContext capture_context(bool& playing);
 i32 capture_position(u32 track);
 u32 capture_scaled_delta(u32 track, u32 delta);
+i32 capture_collision_radius(u32 track);
 bool capture_record_held();
 u32 capture_write(u32 track, const RecordedNote* notes, u32 count);
 void capture_notify();

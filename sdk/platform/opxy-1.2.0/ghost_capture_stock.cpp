@@ -74,16 +74,21 @@ u32 capture_scaled_delta(u32 track, u32 delta) {
 }
 bool capture_record_held() { return byte(kController + 0x3e30) != 0; }
 
+i32 capture_collision_radius(u32 track) {
+    const u32 scale = stock<u32(u32)>(0x8d5851e8)(track);
+    if (scale >= 16) return -1;
+    const u32 numerator = word(0x840a040c + scale * 8);
+    const u32 denominator = word(0x840a0410 + scale * 8);
+    if (!denominator) return -1;
+    return 180u * numerator / denominator;
+}
+
 u32 capture_write(u32 track, const RecordedNote* notes, u32 count) {
     if (!notes || !count || count > RecordingHistory::capacity || track >= 8) return 0;
     auto* container = stock<unsigned char*(u32, u32)>(0x8d585c60)(track, 0);
     if (!container || *reinterpret_cast<const i16*>(container + 0x786) >= 120) return 0;
-    const u32 scale = stock<u32(u32)>(0x8d5851e8)(track);
-    if (scale >= 16) return 0;
-    const u32 numerator = word(0x840a040c + scale * 8);
-    const u32 denominator = word(0x840a0410 + scale * 8);
-    if (!denominator) return 0;
-    const i32 radius = 180u * numerator / denominator;
+    const i32 radius = capture_collision_radius(track);
+    if (radius < 0) return 0;
     // Start one stock undo transaction before changing any notes. This reset
     // only clears the previous note-undo identity; it does not move transport.
     stock<void(u32)>(0x8d58fd38)(kController);

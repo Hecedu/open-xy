@@ -200,23 +200,37 @@ int main() {
     step_entry=true; note(); step_entry=false;
     stop(); double_tap(); CHECK(writes==4);
 
-    // An early first note survives the loop cutoff AND the time spent tapping.
-    // The actual service must commit the first-press snapshot after its live
-    // history has aged out, preserving original position/duration/velocity.
+    // An early first note survives loop wrap and time spent making the gesture.
     scale=3; play(); position=-12; note(65,97); advance(40); release(65);
     advance(track_length*480-28);
     key(50,true); advance(300); key(50,false); key(50,true); key(50,false);
     CHECK(writes==5 && popups==5 && inserted[4].position==-12);
     CHECK(inserted[4].length==40 && inserted[4].pitch==65 && inserted[4].velocity==97);
     // An expired pair must take a fresh snapshot, not reuse the earlier take.
-    position=20; note(66); advance(20); release(66);
-    key(50,true); key(50,false); advance(track_length*480+240);
+    position=20; note(66); advance(20);
+    key(50,true); key(50,false); advance(60);
     key(50,true,350001); key(50,false); key(50,true); key(50,false);
-    CHECK(writes==5);
+    CHECK(writes==6 && inserted[5].length==80); release(66);
     // Context changes invalidate a snapshot already anchored by the first tap.
     position=0; note(); advance(30); release(); key(50,true); key(50,false);
     ++quantization; sdk_capture_loop(0x860cf9c8,17);
-    key(50,true); key(50,false); key(50,true); key(50,false); CHECK(writes==5);
+    key(50,true); key(50,false); key(50,true); key(50,false); CHECK(writes==6);
+
+    // Reported workflow: two pages at 1x, quantization on, one silent pass,
+    // early pickup into the next pass, then Stop after the loop wraps again.
+    // Later passes replace the same note without expiring the first step.
+    stop(); track_length=32; scale=3; quantization=255; play();
+    advance(7680); advance(7668); position=32*480-12;
+    note(60,93); advance(12); release(60);
+    position=480; note(67,80); advance(60); release(67);
+    for (u32 pass=0;pass<3;++pass) {
+        advance(7680); advance(7680);
+        note(67,90+pass); advance(60); release(67);
+    }
+    advance(7680); advance(7680); advance(960); stop(); double_tap();
+    CHECK(writes==8 && inserted[6].position==-12 && inserted[6].pitch==60);
+    CHECK(inserted[6].velocity==93 && inserted[6].length==12);
+    CHECK(inserted[7].position==480 && inserted[7].pitch==67 && inserted[7].velocity==92);
     CHECK(!failed);
     return 0;
 }

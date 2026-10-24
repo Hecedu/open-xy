@@ -46,7 +46,7 @@ The bootloader is never modified.
 
 ## Retrospective notes
 
-The internal service in `ghost_capture.cpp` keeps a bounded current-track history;
+The internal service in `ghost_capture.cpp` keeps a bounded current-track ghost pattern;
 `ghost_capture_stock.cpp` supplies the version-specific recording context and
 forwards stock calls. It is not a public plugin registration interface.
 
@@ -66,16 +66,17 @@ not. Stock input arguments and normal recording actions are forwarded unchanged.
 
 History uses the same position getter, pickup convention and scaled Q8 duration
 deltas as stock recording. Pattern quantization remains stock playback behavior.
-The history window includes 240 extra pattern ticks (half a stock step) at its
-oldest edge; this does not alter note positions, quantization or the one-loop
-maximum held-note duration. The first clean Record press snapshots the take.
-Completing the second tap commits that snapshot, so gesture time cannot expire
-its first note. Interrupted/expired pairs never commit the saved snapshot.
+Completed notes do not expire with elapsed time. New onsets replace same-pitch
+notes strictly inside the stock scale-dependent collision radius; a full ghost
+pattern rejects new onsets before pruning, as the stock container does. Tick
+updates advance held-note duration, capped at one loop. The first clean Record
+press snapshots the take; completing the second tap commits that snapshot.
+Interrupted/expired pairs never commit the saved snapshot.
 Insertion calls the stock note container with its scale-dependent collision
 radius and 120-note capacity, after resetting and taking one stock undo snapshot.
 It publishes the pattern once, without calling the audible note dispatcher or
 moving the playhead. An empty cache or full pattern produces no success popup. History
-retains at most 120 recent onsets and 20 simultaneously held notes; it is cleared
+retains at most 120 notes and 20 simultaneously held notes; it is cleared
 after a successful insertion, on track/context changes and on a new playback
 start. Stop preserves the partial take. Host adapter tests use stock doubles;
 they do not establish device scheduling or timing.
