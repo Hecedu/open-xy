@@ -217,6 +217,21 @@ its own budget. Browser page 4 suppresses new requests: stock auditions
 replace regions while it is open. Results are released before stock frees the
 PCM object.
 
+### Sample display snapshots
+
+The GUI-only `opxy::sample_display` service resolves the selected owned
+sample region and copies a fixed 96-bin overview, trim and advisory started
+voice count. The GUI never dereferences PCM or contributor voice state.
+Eight fixed request slots publish overviews with sequence checks; sample
+eviction invalidates them before stock frees the object. Audio publishes
+only each adapter slot's track token, clearing it on destruction or choke.
+
+Changed GUI requests coalesce onto stock's file queue (`0x8d4dd508`, also
+used by the sample manager at `0x8d5096e8` and `0x8d50bd6c`). The callback
+acquires a stock sample reference, computes peaks, publishes a copy and
+releases the reference. The existing load-completion hook retries requests
+whose sample was still loading. No additional firmware edit is needed.
+
 ### Pad settings and the drum page
 
 Pad settings occupy the stock pad record's fade word as a tagged 16-bit value,

@@ -12,6 +12,7 @@ static bool owned = true;
 static opxy::DrumControl received;
 extern "C" unsigned sdk_sample_selected_engine() { return selected; }
 extern "C" int probe_ready() { return owned; }
+extern "C" unsigned probe_display_voices(unsigned) { return 0; }
 // The probe also declares analysis; its callbacks are not exercised here.
 extern "C" unsigned probe_analysis_words(const opxy::SampleView*) { return 0; }
 extern "C" unsigned probe_prepare_begin(const opxy::SampleView*, unsigned*, unsigned) { return 0; }

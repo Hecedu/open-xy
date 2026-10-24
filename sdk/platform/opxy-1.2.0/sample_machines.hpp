@@ -28,6 +28,7 @@ struct SampleMachine {
     u32 (*prepare_step)(u32, u32*);
     u32 (*prepared)(SampleAnalysis*);
     u32 single;             // one sample assigned across the track, independently of display
+    u32 (*display_voices)(u32 track);  // bounded GUI snapshot of started sample voices
     u32 engine() const { return static_cast<u32>(reinterpret_cast<__UINTPTR_TYPE__>(engine_id)); }
 };
 }}

@@ -53,6 +53,11 @@ every declared parameter by index (0 beyond the declared ones). A serial is a
 snapshot, not a queue: several note starts between frames can coalesce.
 Initializing or changing track must not fabricate a note.
 
+Sample displays can read a copied waveform overview, trim and voice activity
+through [`opxy::sample_display`](api.md#sample-engines). This supplies data for
+ordinary paths and nodes in the same frame; it adds no renderer or display
+class. Browser display previews return an unavailable sample snapshot.
+
 ## Frame
 
 The frame persists between calls; the first call after reset must set every

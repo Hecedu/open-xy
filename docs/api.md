@@ -61,29 +61,41 @@ device.
 
 The OP-XY renders every voice and effect in 64-sample blocks, 1.45 ms each, on
 one Blackfin core that also runs its own engines, sequencer and effects. A
-machine's cost adds up per sounding voice and per track that uses it. The SDK
-sets no hard limit and does not yet measure device cycles.
+machine's cost adds up per sounding note and per track that uses it. Count all
+internal oscillators, grains and layers within a note, and count release tails
+as sounding notes. Voice storage capacity is not a polyphony qualification.
+The SDK sets no hard limit and does not yet measure device cycles.
 
-`python sdk.py test` prints an estimate for synths and effects in **Blackfin
-instructions per 64-sample block**, at the machine's heaviest control setting.
+`compile`, `build` and `test` print the CPU planning allocation. At 400 MHz and
+44.1 kHz there are about 580,500 cycles per block. A target of 24 simultaneous
+sounding notes with a provisional 50% reserve for stock processing, effects,
+sequencing and other work leaves about 12,000 cycles per note/block. This is
+a design allocation, not measured stock overhead or a guarantee of 24 notes.
+
+`python sdk.py test` prints an estimate for synths and effects in **host-calibrated
+instruction-equivalents per 64-sample block**, at its heaviest tested setting.
+Sample-engine costs are explicitly reported as **UNESTIMATED**. Native compilation
+also warns that structural and memory checks do not qualify real-time CPU cost.
 It times the machine's render (or `process`) on your computer against a
 reference loop in the same run, a table oscillator through a one-pole filter
-of known Blackfin instruction count (about 590 per block), so the figure is
-about the same on any computer:
+of known Blackfin instruction count (about 590 per block). This normalization
+reduces host variation; it does not reproduce compiled Blackfin control flow,
+memory traffic or cycle costs:
 
 ```text
-CPU estimate (host-timed; not measured on the device): Pluck about 7,700 Blackfin instructions per voice block at its heaviest setting. Aim for at most 15,000; for scale, 2op FM about 14,000, Macro Osc (Braids) about 9,000
+CPU estimate (host-timed; not measured on the device): Pluck about 7,700 instruction-equivalents per voice block at its heaviest setting. Aim for at most 15,000; for scale, 2op FM about 14,000, Macro Osc (Braids) about 9,000
 ```
 
-| Per 64-sample block | Aim for at most | Likely to drop audio above | Bundled machines |
+| Host instruction-equivalents per 64-sample block | Review above | Strong warning above | Bundled machines |
 | --- | --- | --- | --- |
 | A synth voice | 15,000 | 24,000 | 2op FM about 14,000, Macro Osc (Braids) about 9,000 |
 | An effect, once per track | 30,000 | 48,000 | Ring Mod about 10,500 |
 
-Above the aim, make the machine lighter where you can; above the second limit,
-measure it on a device with many notes held across tracks. Instructions are
-not cycles: pipeline stalls add some. And the estimate understates what the
-host does fast and the Blackfin does not:
+These screening thresholds are not the 24-note cycle allocation. Test on a
+device at the intended polyphony, settings and sample layout, including effects
+and release tails. A host estimate can materially understate native cost.
+Instruction packets also differ from cycles because of pipeline and memory
+stalls. Common sources of unexpected cost include:
 
 - **Division** has no hardware instruction and costs tens of cycles on the
   device. Divide once per block, or use a table or a reciprocal.
@@ -260,8 +272,22 @@ including locks, alternates and fine turns; it does not expose drum-region
 encoders. Assignment, recording and project/preset storage remain stock-owned.
 Changing an already published machine's assignment mode changes how its saved
 sample mappings are interpreted and requires a compatibility review.
-The display receives only the ordinary drawing input snapshot; it cannot read
-the sample cache or live voice state.
+The display receives the ordinary drawing input snapshot. Sample instruments
+may additionally call the GUI-only `opxy::sample_display(track, output)` service
+from `<opxy/sample_display.hpp>`. It copies 96 min/max waveform bins, loaded
+frames/rate/channels, current trim/direction, a publication generation and the
+track's started sample-voice count (including release tails). Peaks combine
+both channels. The bool result reports waveform availability; the voice count
+is available while an assigned sample's waveform is pending. Missing samples,
+unowned engines and the sample browser do not expose stale waveforms.
+
+The existing file worker computes overviews while retaining the source sample;
+the GUI requests and copies bounded snapshots without accessing PCM, allocating
+or waiting. Eviction invalidates cached data before stock frees the source.
+Snapshots are advisory, not audio synchronization or individual grain positions.
+Draw them with the same SVG paths/nodes as any other display. Hosts without a
+sample source return an unavailable snapshot; host tests can supply this C
+service with synthetic snapshots.
 
 ### Audio block
 

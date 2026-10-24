@@ -40,7 +40,7 @@ class SampleServices(unittest.TestCase):
                 generate_sample_callbacks(folder, [probe])
                 # Exercise the real tempo readers and assignment bridge with
                 # host addresses standing in for stock functions and globals.
-            if name in ('sample_callbacks', 'sample_routing'):
+            if name in ('sample_callbacks', 'sample_routing', 'sample_display_stock'):
                 stock = (ROOT / 'sdk/platform/opxy-1.2.0/stock.hpp').read_text()
                 stock = stock.replace('typedef __UINTPTR_TYPE__ Address;',
                                       'typedef __UINTPTR_TYPE__ Address;\nAddress host_stock_address(Address);')
@@ -52,6 +52,9 @@ class SampleServices(unittest.TestCase):
                 # The production bridge, with only stock address resolution replaced.
                 for unit in ('sample_controls_stock.cpp', 'sample_machines.cpp'):
                     (Path(folder) / unit).write_text((ROOT / 'sdk/platform/opxy-1.2.0' / unit).read_text())
+            if name == 'sample_display_stock':
+                unit = 'sample_display_stock.cpp'
+                (Path(folder) / unit).write_text((ROOT / 'sdk/platform/opxy-1.2.0' / unit).read_text())
             if name == 'screen_order':
                 generate_screen_order(folder)
             if name == 'startup':
@@ -68,6 +71,12 @@ class SampleServices(unittest.TestCase):
 
     def test_cache_lifetime_capacity_and_browser_deferral(self):
         self.run_fixture('sample_cache')
+
+    def test_sample_display_copies_peaks_and_rejects_stale_or_pending_data(self):
+        self.run_fixture('sample_display')
+
+    def test_sample_display_uses_owned_gui_region_and_reports_pending_activity(self):
+        self.run_fixture('sample_display_stock')
 
     def test_progress_never_takes_over_another_notification(self):
         self.run_fixture('sample_progress')
