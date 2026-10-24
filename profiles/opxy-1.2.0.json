@@ -132,6 +132,10 @@
     "samples": [
       "sample"
     ],
+    "octaves": [
+      "sample",
+      "player"
+    ],
     "players": [
       "player"
     ]
@@ -723,8 +727,8 @@
       "file_offset": "0x1c4da6",
       "length": 4,
       "before": "ffe37db1",
-      "symbol": "sdk_sample_octave_store",
-      "service": "samples",
+      "symbol": "sdk_octave_store",
+      "service": "octaves",
       "call": true
     },
     {

@@ -39,7 +39,8 @@ version is rejected. The output differs from stock in exactly these places:
 The sample rows (sample dispatch, analysis, drum-page services and recorder)
 form the profile's `samples` service: a build applies those edits, and links
 the SDK code behind them, only when it includes a sample engine. The player
-rows form the `players` service in the same way. Otherwise their sites stay stock. Everything else must reconstruct byte for byte. Protected ranges in
+rows form the `players` service in the same way. The octave setter's hook
+forms the `octaves` service, which both use. Otherwise their sites stay stock. Everything else must reconstruct byte for byte. Protected ranges in
 [`pipeline.py`](../tooling/pipeline.py) admit only hooks into the module and
 the reviewed startup label.
 The bootloader is never modified.
@@ -237,7 +238,8 @@ parameter table using stock note-start's 73-position mapping to -36..36
 semitones, separately from pitch increments, which also include absolute note
 pitch and modulation. Drum-key routing passes stock's track octave to its key
 mapper and publishes the octave in a per-track word; the octave setter also
-publishes each change. Audio maps notes with that snapshot and the same
+publishes each change (`keyboard_octaves.cpp`). Players read the same word to
+place a note on the keyboard: the lowest key, F, plays 53 + 12 × octave. Audio maps notes with that snapshot and the same
 integer mapping, without calling GUI project or pattern getters. Choke uses
 the canonical pad; the raw note minus the canonical pad is `drum_transpose`.
 

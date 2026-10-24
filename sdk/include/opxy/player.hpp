@@ -30,8 +30,13 @@ struct Plan {
 
 // The player page's four encoders, Q31 0..1. Encoder 1 moves in 64 steps,
 // encoder 2 in 4, encoder 3 continuously and encoder 4 between off and on.
+// lowest_key is the note the keyboard's lowest key (F) plays at the track's
+// current octave, so note - lowest_key is a key's position: 0..11 the lower
+// octave, 12..23 the upper. Sequenced notes keep the pitch they were recorded
+// with, so their position follows the octave at playback.
 struct Controls {
     i32 value[4];
+    u32 lowest_key;
 };
 
 // A player with its own page draws it from State on the GUI side, once per

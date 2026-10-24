@@ -34,7 +34,7 @@ void check(const char* what, bool ok) {
 
 int main() {
     chords::State state = {};
-    opxy::player::Controls controls = {{0, 0, kCentre, 0}};
+    opxy::player::Controls controls = {{0, 0, kCentre, 0}, 53};
     opxy::player::Plan plan;
     const int none[8] = {0, 0, 0, 0, 0, 0, 0, 0};
     auto hold = [&](unsigned key) { chords::press(state, controls, key, 90, plan); };
@@ -117,7 +117,7 @@ int main() {
     for (unsigned i = 0; i < plan.count; ++i) check("pitches stay in range", plan.tones[i].pitch <= 127);
 
     // The page: dot k is key k from F, lower octave 0..11, modifier octave 12..23.
-    controls = opxy::player::Controls{{0, 0, kCentre, 0}};
+    controls = opxy::player::Controls{{0, 0, kCentre, 0}, 53};
     chords::State page = {};
     opxy::player::Display shown;
     chords::display(page, controls, shown);
@@ -141,6 +141,33 @@ int main() {
     controls.value[2] = 0;
     chords::display(page, controls, shown);
     check("negative voicing", std::string(shown.values[2]) == "-6");
+
+    // Keyboard octave shifts move the roots, never the modifier keys' roles.
+    for (int octave = -3; octave <= 3; ++octave) {
+        chords::State shifted = {};
+        opxy::player::Controls at = {{0, 0, kCentre, 0}, static_cast<opxy::u32>(53 + 12 * octave)};
+        const unsigned low = at.lowest_key;
+        chords::press(shifted, at, low + 12 + 4, 90, plan);  // the fifth upper key: min
+        check("shifted modifier is silent", plan.count == 0);
+        chords::press(shifted, at, low + 7, 90, plan);       // the eighth lower key: C
+        const int c = static_cast<int>(low + 7);
+        const int p[] = {c, c + 3, c + 7};
+        expect("shifted C minor", plan, p, none, 3);
+        chords::display(shifted, at, shown);
+        check("shifted root dot and name", (shown.lit & 0xfff) == (1u << 7) && std::string(shown.text) == "C minor");
+        check("shifted modifier release", chords::release(shifted, low + 16));
+    }
+    {
+        // A modifier held across an octave shift is released by its own note.
+        chords::State held = {};
+        opxy::player::Controls at = {{0, 0, kCentre, 0}, 53};
+        chords::press(held, at, kMajKey, 90, plan);
+        at.lowest_key = 65;
+        check("release after a shift", chords::release(held, kMajKey));
+        chords::press(held, at, 65, 90, plan);
+        { const int p[] = {65}; expect("no type left held", plan, p, none, 1); }
+        check("a root released after a shift goes to stock", !chords::release(held, 65));
+    }
 
     if (failures) std::printf("%d failures\n", failures);
     return failures ? 1 : 0;

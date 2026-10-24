@@ -8,6 +8,7 @@
 //   load    8d58742c   keep an owned type a project stored
 //   UI      8c0afca2, 8c0affa6  index the controller table with Maestro's entry
 //   names   8d5bbf50, 8d5bbfd8  convert between an owned type and its name
+#include "keyboard_octaves.hpp"
 #include "players.hpp"
 #include "registration.hpp"
 
@@ -98,6 +99,8 @@ opxy::player::Controls player_controls(void* object) {
     const i32* words = stock<const i32*(u32)>(kParameters)(track);
     opxy::player::Controls controls;
     for (u32 i = 0; i < 4; ++i) controls.value[i] = words[i];
+    const i32 octave = track < kTracks ? sdk_track_octaves[track] : 0;
+    controls.lowest_key = static_cast<u32>(static_cast<i32>(kLowestKey) + 12 * octave);
     return controls;
 }
 

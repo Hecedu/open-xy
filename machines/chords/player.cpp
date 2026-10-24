@@ -1,13 +1,13 @@
 #include <opxy/player.hpp>
 
-// Chord player. On the OP-XY's F-to-E keyboard at its default octave, the
-// lower octave (F3..E4) plays chord roots and the upper octave (F4..E5) holds
-// chord modifiers, which never sound:
+// Chord player. On the OP-XY's two-octave F-to-E keyboard, the lower octave
+// plays chord roots and the upper octave holds chord modifiers, which never
+// sound, whatever octave the keyboard is shifted to:
 //   white F G A B C D E  chord type  dim aug min maj sus dom half
 //   black F# G# A# C# D#  extension  6 m7 M7 9 11
 // A root plays the most recently held chord type with every held extension,
-// or itself alone when no type is held. Keys outside the modifier octave are
-// roots, so octave shifts keep playing chords.
+// or itself alone when no type is held. Notes outside the keyboard's two
+// octaves (from the sequencer) are roots.
 namespace chords {
 using opxy::u8;
 using opxy::u32;
@@ -16,7 +16,7 @@ using opxy::player::Controls;
 using opxy::player::Display;
 using opxy::player::Plan;
 
-const u32 kSplit = 65;  // F4: the first modifier key
+const u32 kF = 5;  // pitch class of the keyboard's first key
 enum Type : u8 { kNone, kDim, kAug, kMin, kMaj, kSus, kDom, kHalf, kTypes };
 const u32 kExtensionCount = 5;
 
@@ -27,6 +27,7 @@ struct State {
     u8 descending;  // alternate direction: the next chord's order
     u32 seed;       // random direction
     u8 root;        // the last root played, plus one; 0 before the first
+    u8 notes[12];   // the note holding each modifier key, plus one; 0 when up
     u8 unused[3];
 };
 
@@ -44,8 +45,9 @@ const u8 kModifier[12] = {kDim, kTypes, kAug, kTypes + 1, kMin, kTypes + 2, kMaj
 const u8 kTypeKey[kTypes] = {0, 0, 2, 4, 6, 7, 9, 11};
 const u8 kExtensionKey[kExtensionCount] = {1, 3, 5, 8, 10};
 
-int modifier(u32 note) {
-    return note >= kSplit && note < kSplit + 12 ? kModifier[note - kSplit] : -1;
+// The modifier key (0..11 from F) a note plays, or -1 for a root.
+int modifier_key(u32 note, u32 lowest_key) {
+    return note >= lowest_key + 12 && note < lowest_key + 24 ? static_cast<int>(note - lowest_key - 12) : -1;
 }
 
 u32 steps(i32 value, u32 count) {  // Q31 0..1 -> 0..count-1, count <= 65536
@@ -132,9 +134,15 @@ void name(Text& out, u32 root, u32 type, u32 extensions) {
 }
 }
 
+// A modifier is released by the note that pressed it, so an octave shift
+// while it is held cannot leave it stuck.
 bool release(State& state, u32 note) {
-    const int m = modifier(note);
-    if (m < 0) return false;
+    int key = -1;
+    for (int k = 0; k < 12; ++k)
+        if (state.notes[k] == note + 1) key = k;
+    if (key < 0) return false;
+    state.notes[key] = 0;
+    const int m = kModifier[key];
     if (m >= kDim && m < kTypes) {
         state.held &= static_cast<u8>(~(1u << m));
         if (state.last == m) {
@@ -150,7 +158,9 @@ bool release(State& state, u32 note) {
 
 bool press(State& state, const Controls& controls, u32 note, u32 velocity, Plan& plan) {
     plan.count = 0;
-    const int m = modifier(note);
+    const int key = modifier_key(note, controls.lowest_key);
+    if (key >= 0) state.notes[key] = static_cast<u8>(note % 128 + 1);
+    const int m = key >= 0 ? kModifier[key] : -1;
     if (m >= kDim && m < kTypes) {
         state.held |= static_cast<u8>(1u << m);
         state.last = static_cast<u8>(m);
@@ -211,7 +221,7 @@ bool press(State& state, const Controls& controls, u32 note, u32 velocity, Plan&
 // encoder values.
 void display(const State& state, const Controls& controls, Display& display) {
     display.lit = 0;
-    if (state.root) display.lit |= 1u << ((state.root - 1 + 12 - kSplit % 12) % 12);
+    if (state.root) display.lit |= 1u << ((state.root - 1 + 12 - kF) % 12);
     if (state.last != kNone) display.lit |= 1u << (12 + kTypeKey[state.last]);
     for (u32 i = 0; i < kExtensionCount; ++i)
         if (state.extensions & (1u << i)) display.lit |= 1u << (12 + kExtensionKey[i]);
