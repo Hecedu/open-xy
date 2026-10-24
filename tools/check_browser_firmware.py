@@ -9,8 +9,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from tooling.formats import elf32, ldr, mapped_offset, require, sha
-from tooling import screen, startup_label
-from tooling.adapters import catalog_defaults
+from tooling import presets, screen, startup_label
 from tooling.firmware import active_services, assemble, hook_instruction, patch_active
 from tooling.native import configuration, package_collection
 
@@ -42,7 +41,7 @@ def main():
     subprocess.run(['node', str(ROOT / 'tools/check_browser_firmware.mjs'), str(directory), str(stock_file), str(content)], check=True)
     kit = json.loads((directory / 'kit.json').read_text(encoding='utf-8'))
     # Definitions of the machines the kit was built from, wherever they live.
-    definitions = {m.id: m.definition for m in configuration(package_collection(directory / 'source'))[1]}
+    machines = {m.id: m for m in configuration(package_collection(directory / 'source'))[1]}
     stock = stock_file.read_bytes()
     require(sha(stock) == kit['profile']['stock_sha256'], 'Unexpected stock input')
     # 0x8c0c88bc measures the text using this stock width table, adding
@@ -96,14 +95,8 @@ def main():
             if machine['kind'] != 'effect':
                 name = 'content/presets/' + machine['id'] + '/default.json'
                 data = (prefix / name).read_bytes()
-                preset = json.loads(data)
-                definition = definitions[machine['id']]
-                defaults = catalog_defaults(definition)
-                entry = json.loads(machine['catalog'].strip().lstrip(','))
-                require(preset['type'] == entry['type'] and preset['platform'] == 'OP-XY' and
-                        preset['version'] == 4 and preset['engine']['params'] == defaults and
-                        preset['regions'] == [] and preset['fx']['active'] is False and
-                        preset['lfo']['active'] is False, 'Default preset differs from instrument definition')
+                require(data == presets.assets(machines[machine['id']])[name],
+                        'Default preset differs from instrument source')
                 expected_files[name] = data
             if machine.get('artwork'):
                 name = 'content/display/' + machine['asset']
