@@ -49,6 +49,9 @@ sound (`engine.cpp`) and display (`display.cpp` and artwork), a sample engine's
 `sample.cpp` or an effect's `fx.cpp`. The SDK supplies adapters, storage,
 previews, firmware builds and packaging.
 
+Submitted instruments also include an authored
+[`presets/default.json`](docs/api.md#default-preset), installed with their content.
+
 - [Machine API](docs/api.md): platform rules, schemas, callbacks for each kind, buffers and ownership.
 - [Display API](docs/display.md): retained drawing frames and asset constraints.
 - [Build your own firmware](docs/build.md): toolchain, stock files, adding a machine, build and install.

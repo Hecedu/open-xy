@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {buildAssets, presetPath, sha256} from '../builder/core.mjs';
+import {Device} from '../builder/mtp.mjs';
+import {fakeDevice} from './fixtures/mtp.mjs';
 
 const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 // Catalog entries as the Python SDK writes them (any valid Q15 defaults).
@@ -63,4 +65,24 @@ test('preset generation rejects unsafe paths, foreign kinds and invalid engine p
   }
   const {kit,catalog}=await fixture([{id:'example',kind:'synth',catalog:',{"type":"../bad","default_params":[0,0,0,0,0,0,0,0]}'}]);
   await assert.rejects(buildAssets(kit,['example'],catalog,numbers),/preset engine or defaults/);
+});
+
+test('catalog defaults are required and reach nested MTP content folders unchanged', async () => {
+  const m = {...machines[0], origin:'catalog'};
+  const {kit,catalog} = await fixture([m]);
+  await assert.rejects(buildAssets(kit,[m.id],catalog,numbers), /missing presets\/default.json/);
+  m.defaultPreset = JSON.parse(read('machines/fm2op/presets/default.json'));
+  m.defaultPreset.engine.params[0] = 7312;
+  m.defaultPreset.envelope.amp.attack = 987;
+  const original = structuredClone(m.defaultPreset);
+  const files = await buildAssets(kit,[m.id],catalog,numbers);
+  assert.deepEqual(JSON.parse(new TextDecoder().decode(files[presetPath(m)])), original);
+  const userPath = 'user/presets/my-sound.json', user = Uint8Array.of(7);
+  const {device,state} = fakeDevice({files: {[userPath]: user}}), mtp = new Device(device);
+  await mtp.open();
+  for (const [path, bytes] of Object.entries(files)) await mtp.send(path,bytes);
+  await mtp.close();
+  assert.deepEqual(state.read(presetPath(m)), files[presetPath(m)]);
+  assert.deepEqual(state.read(userPath),user);
+  assert.deepEqual(m.defaultPreset,original);
 });

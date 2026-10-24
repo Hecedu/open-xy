@@ -104,6 +104,7 @@ prints its results as JSON, then the files to install from `<out>/candidate/`.
 | `os.ldr` | `/os.ldr` |
 | `content/op1_factory.json` | `/content/op1_factory.json` |
 | `content/display/<machine>.svg`, one per synth | `/content/display/<machine>.svg` |
+| `content/presets/<machine>/default.json`, one per instrument | `/content/presets/<machine>/default.json` |
 
 1. Open file transfer as in step 2 and copy the files to the paths above,
    replacing existing files. Keep the device's other content.
@@ -111,9 +112,8 @@ prints its results as JSON, then the files to install from `<out>/candidate/`.
 3. Press track 5 for "5. write os to boot partition", keeping the OP-XY on power.
    When "firmware written ok!" appears, switch it off and on.
 
-The firmware writer reads `/os.ldr`, not the upgrade directory. The browser
-builder's packages also add an init preset for each instrument
-(`content/presets/<machine>/default.json`); command-line packages do not.
+The firmware writer reads `/os.ldr`, not the upgrade directory. Both browser
+and command-line packages include each instrument's [default preset](api.md#default-preset).
 `module.elf` and `module.bin` are development artifacts, not installable
 images. The SDK's commands never write to a device. To select machines and
 install through the browser builder's guide instead, export a

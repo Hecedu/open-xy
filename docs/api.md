@@ -387,10 +387,42 @@ preset entries, its screen file, its symbol prefix and its C++ namespace. It is 
 | `identity` | The numbers it asks for: `{"engine": n, "page": p}`, or `{"effect": n, "page": 21}` for an effect; see below |
 | `sources`, `includes` | Optional extra translation units and include folders inside the machine folder; synths only, since the native plan compiles one source for the other kinds |
 | `icon` | Optional builder glyph: SVG path data in a 46 × 48 box, drawn as a stroke. The kind's glyph is used otherwise |
-| `presetDefaults` | Optional `{"amp": {...}}` overriding generated factory preset envelope values: `attack`, `decay`, `release` and `sustain`, each 0..32767. It does not rewrite existing projects or presets |
+| `presetDefaults` | Optional `{"amp": {...}}` used when creating an init preset: `attack`, `decay`, `release` and `sustain`, each 0..32767. An authored `presets/default.json` takes precedence |
 
 An effect's optional `dryParameter` field names the control used by the stock
 source dry mixer, as described under [effects](#effects).
+
+### Default preset
+
+Each submitted synth or sample machine includes `presets/default.json` inside
+its machine folder, committed in the same release as its source. `sdk.py new`
+creates it for a synth. For an existing instrument, create it once with:
+
+```sh
+python sdk.py preset --machine <folder> --out <folder>/presets/default.json
+```
+
+The command refuses to overwrite a file. Edit the resulting OP-XY version-4
+JSON to choose the instrument's starting sound; `sdk.py test` validates it.
+The `type` must match the machine ID. `engine.params` holds eight integer
+values in definition parameter order, scaled to 0..32767 and padded with zeros.
+Envelope and other unsigned settings also use 0..32767; `octave` and
+`engine.transpose` accept signed 16-bit integers. Keep the generated structure:
+the supported init uses `poly`, the `svf` filter and `value` LFO. `regions` must
+stay empty because submissions do not package sample assets. Unknown fields,
+wrong engine names, redirected files and invalid values are rejected.
+
+The committed file owns these settings; changing definition defaults or
+`presetDefaults` does not rewrite it. Listen to the patch before submitting,
+and check it on the device when available. Send effects use their definition's
+control defaults and have no standalone instrument preset.
+
+Catalog fetching and published kit export require this file. Both browser and
+command-line packages install it as `content/presets/<id>/default.json`.
+The builder embeds the preset from the catalog's pinned commit, so installation
+does not fetch a moving branch or require another preset index. Existing SDK 1.0
+personal machines without the file still receive a generated init when built.
+User-saved sounds under `user/` are not changed.
 
 ### Identity
 

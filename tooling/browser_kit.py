@@ -18,6 +18,7 @@ from .formats import require, sha
 from .machines import discovered
 from .pipeline import ROOT, child, fresh_output, read, require_release_host, resolve_toolchain, tool_paths
 from . import native, preview, screen
+from . import presets
 
 
 def notices(machines):
@@ -39,6 +40,9 @@ def catalog_sources(machines, personal):
     require(personal or all(m.bundled or m.id in sources for m in machines),
             'A published kit holds the bundled machines and catalog machines at their pinned commits '
             '(sdk.py catalog fetch); build other folders into a --personal kit')
+    if not personal:
+        for m in machines:
+            presets.require_default(m)
     return sources
 
 
@@ -59,6 +63,8 @@ def export(package, output, tools, preview_cxx='clang++', *, stock_catalog, pers
         if m.id in sources:
             entry['source'] = {key: sources[m.id][key] for key in ('repository', 'tag', 'commit', 'maintainer')}
         entry['presetDefaults'] = m.preset_defaults
+        if m.kind != 'effect':
+            entry['defaultPreset'] = presets.default(m)
         if m.icon:
             entry['icon'] = m.icon
         # An unselected machine's startup and catalog callbacks decline.

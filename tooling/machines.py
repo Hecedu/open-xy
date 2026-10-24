@@ -17,6 +17,7 @@ import re
 from .definitions import ANALYSIS_HEAP_LIMIT, ROOT, stock_name, validate_definition
 from .formats import require
 from .pipeline import config
+from . import presets
 
 KINDS = ('synth', 'sample', 'effect')
 FIELDS = {'schema', 'sdk', 'kind', 'description', 'identity', 'sources', 'includes', 'icon', 'presetDefaults',
@@ -57,6 +58,7 @@ class Machine:
     icon: str = ''
     dry_parameter: int | None = None
     requested: dict = None  # the numbers machine.json asks for, when a layout gave others
+    default_preset: dict | None = None
 
     # The stock name and the symbol prefix are the machine's name.
     @property
@@ -199,7 +201,8 @@ def machine_at(root, identity=None):
                    display=display, sources=sources, includes=includes,
                    definition=definition,
                    identity=check_identity(config()['identities'], kind, value['identity']), preset_defaults=defaults,
-                   root=root, icon=icon, dry_parameter=dry_parameter)
+                   root=root, icon=icon, dry_parameter=dry_parameter,
+                   default_preset=presets.read(root, identity, kind))
 
 
 def discovered():

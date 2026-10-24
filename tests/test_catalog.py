@@ -93,6 +93,11 @@ class Fetching(unittest.TestCase):
         definition = json.loads((self.repository / 'definition.json').read_text(encoding='utf-8'))
         definition['id'] = 'probe'
         (self.repository / 'definition.json').write_text(json.dumps(definition), encoding='utf-8')
+        preset_path = self.repository / 'presets/default.json'
+        preset = json.loads(preset_path.read_text(encoding='utf-8'))
+        preset['type'] = 'probe'
+        preset['engine']['params'][0] = 7312
+        preset_path.write_text(json.dumps(preset), encoding='utf-8')
         record = json.loads((self.repository / 'machine.json').read_text(encoding='utf-8'))
         record['identity'] = dict(engine=5, page=85)
         (self.repository / 'machine.json').write_text(json.dumps(record), encoding='utf-8')
@@ -109,6 +114,7 @@ class Fetching(unittest.TestCase):
         self.assertEqual(catalog.tag_commit(self.entry['repository'], 'v1.0.0'), self.entry['commit'])
         m = catalog.fetch(self.entry, self.cache)
         self.assertEqual((m.id, m.identity), ('probe', dict(engine=5, page=85)))
+        self.assertEqual(m.default_preset['engine']['params'][0], 7312)
         self.assertEqual(catalog.fetch(self.entry, self.cache).root, m.root)  # reused when unchanged
         (m.root / 'engine.cpp').write_text('// changed\n', encoding='utf-8')
         with self.assertRaisesRegex(ValueError, 'changed'):
@@ -125,6 +131,14 @@ class Fetching(unittest.TestCase):
         broken.mkdir(parents=True)
         catalog.git('init', '--quiet', cwd=broken)
         self.assertEqual(catalog.fetch(self.entry, self.cache).root, broken)
+
+    def test_submission_without_default_is_rejected_but_old_controls_can_be_compared(self):
+        catalog.git('rm', 'presets/default.json', cwd=self.repository)
+        catalog.git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'missing preset', cwd=self.repository)
+        entry = dict(self.entry, commit=catalog.head(self.repository))
+        with self.assertRaisesRegex(ValueError, 'submissions need presets/default.json'):
+            catalog.fetch(entry, self.cache)
+        self.assertIsNone(catalog.fetch(entry, self.cache, submission=False).default_preset)
 
     def test_fetch_refuses_a_machine_that_differs_from_its_entry(self):
         for change in (dict(kind='effect'), dict(kind='sample')):
@@ -155,6 +169,10 @@ class Controls(unittest.TestCase):
         (self.repository / 'machine.json').write_text(json.dumps(record), encoding='utf-8')
         self.definition = json.loads((self.repository / 'definition.json').read_text(encoding='utf-8'))
         self.definition['id'] = 'probe'
+        preset_path = self.repository / 'presets/default.json'
+        preset = json.loads(preset_path.read_text(encoding='utf-8'))
+        preset['type'] = 'probe'
+        preset_path.write_text(json.dumps(preset), encoding='utf-8')
         # Four positions and one alternate, so a release can remove a parameter.
         self.parameters = self.definition['parameters'] + [self.alternate('spread')]
         subprocess.run(['git', 'init', '-q', '-b', 'main'], cwd=self.repository, check=True, capture_output=True,

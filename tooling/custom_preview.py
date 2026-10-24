@@ -185,6 +185,11 @@ def scaffold(out, identity, name, kind='synth'):
     record = {'schema': 1, 'sdk': '%d.%d' % SDK_VERSION, 'kind': 'synth', 'description': name,
               'identity': stock_identity}
     (out / 'machine.json').write_text(json.dumps(record, indent=2) + '\n', encoding='utf-8', newline='\n')
+    from .machines import machine_at
+    from .presets import SOURCE, default, encode
+    preset = out / SOURCE
+    preset.parent.mkdir(parents=True)
+    preset.write_bytes(encode(default(machine_at(out))))
     metadata(source_files(out))
     print('Created local machine: ' + str(out))
     print(f'Preview with: {python} sdk.py preview --source "{out}" --out local/my-preview-001'

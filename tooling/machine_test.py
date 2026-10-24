@@ -49,6 +49,9 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         machines = [machine_at(folder) for folder in args.machine]
+        from .presets import require_default
+        for m in machines:
+            require_default(m)
         require(len({m.id for m in machines}) == len(machines), 'Each machine folder needs its own ID')
         check_sources([m for m in machines if m.kind != 'synth'])  # a synth's preview build checks its own
         with tempfile.TemporaryDirectory(prefix='opxy-machine-test-') as scratch:

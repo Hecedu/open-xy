@@ -111,6 +111,10 @@ class OutsideMachines(unittest.TestCase):
         definition = json.loads((self.folder / 'definition.json').read_text(encoding='utf-8'))
         definition['id'] = identity
         (self.folder / 'definition.json').write_text(json.dumps(definition), encoding='utf-8')
+        preset_path = self.folder / 'presets/default.json'
+        preset = json.loads(preset_path.read_text(encoding='utf-8'))
+        preset['type'] = identity
+        preset_path.write_text(json.dumps(preset), encoding='utf-8')
         record = json.loads((self.folder / 'machine.json').read_text(encoding='utf-8'))
         record.update(identity=ids, sdk=sdk)
         (self.folder / 'machine.json').write_text(json.dumps(record), encoding='utf-8')

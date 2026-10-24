@@ -619,9 +619,11 @@ def extend_catalog(catalog, profile, machines):
 
 
 def prepare_assets(catalog, profile, machines):
+    from .presets import assets
     require(sha(catalog) == profile['stock_catalog_sha256'], 'Stock catalog hash mismatch')
     outputs = {'content/op1_factory.json': extend_catalog(catalog, profile, machines)}
     for m in machines:
+        outputs.update(assets(m))
         if m.display != 'stock':
             outputs[f'content/display/{m.native_name}.svg'] = screen.compose(validate_panel(m))
     return outputs

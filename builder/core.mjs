@@ -489,9 +489,10 @@ export function presetPath(machine) {
   return `content/presets/${machine.id}/default.json`;
 }
 
-function defaultPreset(machine) {
+function initialPreset(machine) {
   const entry = JSON.parse(machine.catalog.trim().replace(/^,/, ''));
   check(/^[a-z][a-z0-9_]{0,14}$/.test(entry.type) && Array.isArray(entry.default_params) &&
+    entry.type === machine.id &&
     entry.default_params.length === 8 && entry.default_params.every(n => Number.isInteger(n) && n >= 0 && n <= 32767),
     'Invalid preset engine or defaults');
   const defaults = machine.presetDefaults ?? {};
@@ -522,6 +523,35 @@ function defaultPreset(machine) {
     lfo: {active: false, params: [0, 0, 0, 0, 0, 0, 0, 0], type: 'value'},
     octave: 0, platform: 'OP-XY', regions: [], type: entry.type, version: 4,
   };
+}
+
+function validatePreset(value, machine) {
+  // Same supported init structure as tooling.presets.validate. No user sample
+  // references or unrecognized fields can enter an install through a preset.
+  const visit = (actual, expected, path) => {
+    const message = `${machine.id}: invalid presets/default.json at ${path || 'root'}`;
+    if (Array.isArray(expected)) {
+      check(Array.isArray(actual) && actual.length === expected.length, message);
+      expected.forEach((item, i) => visit(actual[i], item, `${path}[${i}]`));
+    } else if (expected && typeof expected === 'object') {
+      check(actual && typeof actual === 'object' && !Array.isArray(actual) &&
+        Object.keys(actual).sort().join() === Object.keys(expected).sort().join(), message);
+      for (const [key, item] of Object.entries(expected)) visit(actual[key], item, path ? `${path}.${key}` : key);
+    } else if (typeof expected === 'number' && path !== 'version') {
+      const minimum = ['octave', 'engine.transpose'].includes(path) ? -32768 : 0;
+      check(Number.isInteger(actual) && actual >= minimum && actual <= 32767, message);
+    } else if (typeof expected === 'boolean') {
+      check(typeof actual === 'boolean', message);
+    } else check(actual === expected, message);
+  };
+  visit(value, initialPreset(machine), '');
+  return value;
+}
+
+function defaultPreset(machine) {
+  if (Object.hasOwn(machine, 'defaultPreset')) return validatePreset(machine.defaultPreset, machine);
+  check(machine.origin !== 'catalog', `${machine.id}: missing presets/default.json`);
+  return initialPreset(machine); // Older personal kits, before repository-owned defaults.
 }
 
 export async function buildAssets(kit, selection, catalog, numbers) {

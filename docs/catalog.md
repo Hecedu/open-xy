@@ -25,6 +25,13 @@ effect and page numbers are not the catalog's: each firmware's
 
 IDs are unique across the catalog and the bundled machines.
 
+Each published synth or sample machine must commit a valid
+[`presets/default.json`](api.md#default-preset) beneath its `path`. Fetching checks
+it from the same pinned commit as the code; the builder embeds it and installs
+it under `content/presets/<id>/default.json`. One repository can hold several
+machines, each with its own catalog entry, folder and default. Send effects use
+definition defaults and do not install an instrument preset.
+
 ## Commands
 
 | Command | Does |
@@ -59,6 +66,7 @@ A maintainer then reviews a new machine once, in full:
 - Its audio callbacks never allocate, block, log or do I/O.
 - Its name is sensible, and its licence allows redistribution.
 - It sounds right in the browser preview from its CI.
+- Its committed default preset provides the intended starting sound.
 
 An update moves `tag` and `commit` and is reviewed as a diff. The workflow
 compares the catalog with the pull request's target branch: a change of `kind`

@@ -24,6 +24,7 @@ from .definitions import stock_name
 from .formats import require
 from .machines import COLLECTION, discovered, machine_at, read_collection, relative_path
 from .pipeline import NO_WINDOW, ROOT
+from .presets import require_default
 
 CATALOG = ROOT / 'catalog/machines.json'
 # Fetched machine sources: third-party code, never firmware, so it may live in local/.
@@ -133,7 +134,7 @@ def release_controls(before, after, cache=CACHE, allow=False):
         old = previous.get(entry['id'])
         if entry['status'] != 'published' or old is None or old['commit'] == entry['commit']:
             continue
-        changed, notes = control_changes(fetch(old, cache).definition['parameters'],
+        changed, notes = control_changes(fetch(old, cache, submission=False).definition['parameters'],
                                          fetch(entry, cache).definition['parameters'])
         release = f"{entry['id']} {old['tag']} -> {entry['tag']}"
         report += [f'{release}: {line}' for line in changed + notes]
@@ -168,7 +169,7 @@ def tag_commit(repository, tag):
     return found.get(f'refs/tags/{tag}^{{}}') or found.get(f'refs/tags/{tag}')
 
 
-def fetch(entry, cache=CACHE):
+def fetch(entry, cache=CACHE, *, submission=True):
     """One published machine's folder at exactly its catalog commit, checked against its entry."""
     folder = Path(cache) / f"{entry['id']}-{entry['commit'][:12]}"
     if folder.exists() and not head(folder):
@@ -186,6 +187,8 @@ def fetch(entry, cache=CACHE):
     m = machine_at(folder / entry['path'])
     require(m.id == entry['id'] and m.kind == entry['kind'],
             f"{entry['id']}: the machine at the pinned commit differs from its catalog entry")
+    if submission:
+        require_default(m)
     return m
 
 
