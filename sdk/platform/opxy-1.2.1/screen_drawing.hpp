@@ -110,6 +110,8 @@ template <class Machine> struct Drawing {
         const u32 activation = sdk_screen_activation(o->base.page, controls.track);
         if (activation && activation != display_activation) {
             binding::display_reset(&display_state, &display_frame);
+            // A reset may reuse earlier nonzero geometry keys with new points.
+            for (u32 p = 0; p < path_count; ++p) o->keys[p] = 0;
             display_activation = activation;
         }
         for (u32 i = 0; i < page_controls; ++i) {
