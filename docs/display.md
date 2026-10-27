@@ -45,6 +45,15 @@ void display(DisplayState& state, const opxy::draw::Input& input, Frame& output)
 `DisplayState` is trivial, standard-layout data. Put it, with the frame type,
 in `display.h`.
 
+## Display activation
+
+The native renderer calls `display_reset` when an owned synth page becomes
+selected and when its selected track changes. The next display callback
+starts with reset state; use this for an entrance or to establish fresh
+note-activity baselines. Continuing to show the same page and track does not
+reset it. Browser hosts call `PreviewDisplay.reset()` when reactivating a
+preview. Audio state, note routing and the drawing input ABI are unchanged.
+
 ## Input
 
 Input holds the Q31 value each of the four control positions shows, Q10 elapsed

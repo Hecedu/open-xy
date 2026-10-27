@@ -4,15 +4,24 @@
 #include "screen_order.hpp"
 
 extern "C" {
+opxy::u32 sdk_screen_activation(opxy::u32, opxy::u32) __asm__("sdk_screen_activation");
 int sdk_screen_owned(opxy::u32) __asm__("sdk_screen_owned");
 opxy::u32 sdk_screen_next(opxy::platform::ScreenCursor*, opxy::u32) __asm__("sdk_screen_next");
 }
 
 namespace {
 opxy::platform::ScreenOrder<@PAGE_LIMIT@> order;
+opxy::platform::ScreenActivation activation;
 }
 
 // selected is the page stock selected for this frame.
 opxy::u32 sdk_screen_next(opxy::platform::ScreenCursor* cursor, opxy::u32 selected) {
-    return order.advance(*cursor, selected, sdk_screen_owned);
+    const bool first = cursor->page == 0;
+    const opxy::u32 more = order.advance(*cursor, selected, sdk_screen_owned);
+    if (first) activation.select(order.promoted);
+    return more;
+}
+
+opxy::u32 sdk_screen_activation(opxy::u32 page, opxy::u32 track) {
+    return activation.token(page, track);
 }

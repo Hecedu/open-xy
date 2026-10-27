@@ -50,6 +50,34 @@ int main() {
                 }
             }
     }
-    std::puts("screen order ok");
+    opxy::platform::ScreenActivation empty = {};
+    require(empty.token(84, 0) == 0);
+    ready = 1; owned_page = 84; frame(84, order);
+    const auto first = sdk_screen_activation(84, 0);
+    require(first != 0 && sdk_screen_activation(83, 7) == 0);
+    // Multiple calls, background renderers and later frames preserve state.
+    require(sdk_screen_activation(84, 0) == first);
+    frame(84, order); require(sdk_screen_activation(84, 0) == first);
+    const auto other_track = sdk_screen_activation(84, 1);
+    require(other_track != first && other_track != 0);
+    require(sdk_screen_activation(84, 1) == other_track);
+    frame(2, order); require(sdk_screen_activation(84, 7) == 0);
+    frame(84, order);
+    const auto reopened = sdk_screen_activation(84, 1);
+    require(reopened != other_track && reopened != 0);
+    // Losing readiness and selecting another owned page are fresh activations.
+    ready = 0; frame(84, order); require(sdk_screen_activation(84, 1) == 0);
+    ready = 1; frame(84, order);
+    const auto ready_again = sdk_screen_activation(84, 1);
+    require(ready_again != reopened && ready_again != 0);
+    owned_page = 85; frame(85, order);
+    require(sdk_screen_activation(84, 1) == 0 && sdk_screen_activation(85, 1) != 0);
+    owned_page = 84; frame(84, order);
+    require(sdk_screen_activation(84, 1) != ready_again);
+    opxy::platform::ScreenActivation wrap = {84, 0, 0xffffffffu, 1};
+    require(wrap.token(84, 1) == 1);
+    wrap.serial = 0xffffffffu; wrap.select(85);
+    require(wrap.serial == 1 && wrap.token(85, 1) != 0);
+    std::puts("screen order and page/track activation ok");
     return 0;
 }

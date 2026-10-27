@@ -6,9 +6,12 @@
 #include "screen.hpp"
 #include "note_activity.hpp"
 
+extern "C" opxy::u32 sdk_screen_activation(opxy::u32, opxy::u32) __asm__("sdk_screen_activation");
+
 namespace opxy { namespace screen { namespace {
 // One typed GUI state, input and frame; never accessed by audio callbacks.
 binding::DisplayState display_state;
+u32 display_activation;
 draw::Input display_input;
 binding::Frame display_frame;
 
@@ -46,6 +49,7 @@ template <class Machine> struct Drawing {
 
     static void init(Object* o) {
         clear(o);
+        display_activation = 0;
         binding::display_reset(&display_state, &display_frame);
         if (!o->base.svg) return;
         bind_controls(&o->base);
@@ -103,6 +107,11 @@ template <class Machine> struct Drawing {
 
     static void animate(Object* o, const Controls& controls) {
         if (!controls.valid) return;
+        const u32 activation = sdk_screen_activation(o->base.page, controls.track);
+        if (activation && activation != display_activation) {
+            binding::display_reset(&display_state, &display_frame);
+            display_activation = activation;
+        }
         for (u32 i = 0; i < page_controls; ++i) {
             display_input.parameters[i] = controls.values[i];
             display_input.shown[i] = controls.shown[i];
