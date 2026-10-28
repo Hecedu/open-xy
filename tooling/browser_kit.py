@@ -82,6 +82,8 @@ def export(package, output, tools, preview_cxx='clang++', *, stock_catalog, pers
             entry['absent'][m.prefix + '_benchmark'] = 'kit_absent'
         if m.display != 'stock':
             entry['artwork'] = read(m.root / 'panel.svg.fragment').decode('utf-8')
+            if m.grayscale:
+                entry['grayscaleArtwork'] = read(m.root / m.grayscale).decode('utf-8')
             entry['asset'] = m.native_name + '.svg'
             preview_dir = output / ('preview-' + m.id)
             preview.build(preview_cxx, m, preview_dir)
@@ -130,7 +132,8 @@ def write_builder(kit, output):
         catalog = base64.b64decode(kit['stockCatalog'], validate=True)
         require(sha(catalog) == kit['profile']['stock_catalog_sha256'], 'Bundled stock catalog hash mismatch')
     template = read(ROOT / 'builder/index.html').decode('utf-8')
-    script = read(ROOT / 'builder/core.mjs').decode('utf-8').replace('export ', '')
+    script = read(ROOT / 'builder/core.mjs').decode('utf-8').replace(
+        "import * as Graphics from '../sdk/browser/graphics.mjs';\n", '').replace('export ', '')
     app = read(ROOT / 'builder/app.mjs').decode('utf-8')
     imports = ("import * as Core from './core.mjs';\nimport * as Wizard from './wizard.mjs';\n"
                "import * as Retained from '../sdk/browser/display.mjs';\n"
@@ -141,8 +144,10 @@ def write_builder(kit, output):
     require(app.startswith(imports), 'Unexpected browser imports')
     # Keep the public source as ES modules; inline a closed namespace for file://.
     exports = ('requireThat decode64 sha256 equal readObject readLayout assignNumbers chosenByDefault moduleBytes openKit linkKit readLdr '
-               'patchFirmware recoverFirmware presetFiles buildAssets zipFiles sourceUrl sourceName').split()
-    bundled = 'const Core = (() => {\n' + script + '\nreturn {' + ','.join(exports) + '};\n})();\n'
+               'patchFirmware recoverFirmware presetFiles artworkForGraphics selectArtwork buildAssets zipFiles sourceUrl sourceName').split()
+    bundled = 'const Graphics = (() => {\n' + read(ROOT / 'sdk/browser/graphics.mjs').decode(
+        'utf-8').replace('export ', '') + '\nreturn {artworkForGraphics,selectArtwork};\n})();\n'
+    bundled += 'const Core = (() => {\n' + script + '\nreturn {' + ','.join(exports) + '};\n})();\n'
     bundled += 'const {editedShown, shownControls, inputWords} = (() => {\n' + read(ROOT / 'sdk/browser/controls.mjs').decode(
         'utf-8').replace('export ', '') + '\nreturn {editedShown, shownControls, inputWords};\n})();\n'
     controls_import = "import { inputWords } from './controls.mjs';\n"
@@ -154,7 +159,7 @@ def write_builder(kit, output):
     bundled += 'const Ferret = (() => {\n'+ read(ROOT / 'builder/ferret.mjs').decode('utf-8').replace(
         'export ', '') + '\nreturn {Session};\n})();\n'
     bundled += 'const Visuals = (() => {\n' + read(ROOT / 'builder/visuals.mjs').decode('utf-8').replace(
-        'export ', '') + '\nreturn {icon,device,fileMap,bundle,guide,reveal};\n})();\n'
+        'export ', '') + '\nreturn {icon,device,fileMap,bundle,guide,reveal,graphicsExamples};\n})();\n'
     wizard = read(ROOT / 'builder/wizard.mjs').decode('utf-8')
     bundled += 'const Mtp = (() => {\n' + read(ROOT / 'builder/mtp.mjs').decode('utf-8').replace(
         'export ', '') + '\nreturn {Device,supported};\n})();\n'

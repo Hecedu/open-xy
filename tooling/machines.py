@@ -20,7 +20,7 @@ from .pipeline import config
 
 KINDS = ('synth', 'sample', 'effect')
 FIELDS = {'schema', 'sdk', 'kind', 'description', 'identity', 'sources', 'includes', 'icon', 'presetDefaults',
-          'presets', 'dryParameter'}
+          'presets', 'dryParameter', 'graphics'}
 # The public machine contract: headers, definition schema, artwork rules and
 # callbacks. A machine names the version it was written for; the SDK builds a
 # machine of the same major version and an equal or older minor version.
@@ -28,7 +28,8 @@ FIELDS = {'schema', 'sdk', 'kind', 'description', 'identity', 'sources', 'includ
 # its tempo (resources.transport) and division captions; 1.3 the machine's own presets,
 # a press that switches a synth's whole page and up to 16 display text slots.
 # 1.4 adds the reusable header and partial second pages sharing unassigned controls.
-SDK_VERSION = (1, 4)
+# 1.5 adds optional developer-authored grayscale artwork.
+SDK_VERSION = (1, 5)
 # Builder card glyph: SVG path data in a 46 x 48 box, drawn as a stroke.
 ICON = re.compile(r'[MLHVCSQTAZmlhvcsqtaz][MLHVCSQTAZmlhvcsqtaz0-9 .,-]{0,511}')
 # A machine's own presets (machine.json `presets`): <name>.json files the builder
@@ -67,6 +68,7 @@ class Machine:
     icon: str = ''
     dry_parameter: int | None = None
     requested: dict = None  # the numbers machine.json asks for, when a layout gave others
+    grayscale: str | None = None
 
     # The stock name and the symbol prefix are the machine's name.
     @property
@@ -102,6 +104,20 @@ def _relative(machine_root, value):
     path = (machine_root / value).resolve()
     require(path.is_relative_to(machine_root.resolve()) and path.exists(), 'Missing machine path: ' + value)
     return value
+
+
+def graphics_path(record):
+    """The optional grayscale source, explicitly opted into by SDK 1.5 synths."""
+    if 'graphics' not in record:
+        return None
+    require_sdk(sdk_version(record.get('sdk')), (1, 5), 'Developer grayscale artwork')
+    graphics = record['graphics']
+    require(record.get('kind') == 'synth' and isinstance(graphics, dict) and set(graphics) == {'grayscale'},
+            'graphics requires a synth and exactly one grayscale artwork path')
+    path = graphics['grayscale']
+    require(relative_path(path) and path.endswith('.svg.fragment') and path != 'panel.svg.fragment',
+            'graphics.grayscale names a separate local .svg.fragment file')
+    return path
 
 
 def check_preset(value, identity):
@@ -249,11 +265,20 @@ def machine_at(root, identity=None):
         require_sdk(version, (1, 3), "A machine's own presets")
         require(kind != 'effect' and isinstance(value['presets'], str), 'presets names a folder; effects have none')
         presets = read_presets(root, value['presets'], identity)
-    return Machine(id=identity, kind=kind, name=definition['name'], description=value['description'],
+    grayscale = graphics_path(value)
+    if grayscale:
+        path = root / grayscale
+        require(path.resolve() == path and path.is_file() and 0 < path.stat().st_size <= 65536,
+                'Missing, redirected or oversized grayscale artwork: ' + grayscale)
+    result = Machine(id=identity, kind=kind, name=definition['name'], description=value['description'],
                    display=display, sources=sources, includes=includes,
                    definition=definition,
                    identity=check_identity(config()['identities'], kind, value['identity']), preset_defaults=defaults,
-                   root=root, icon=icon, dry_parameter=dry_parameter, presets=presets)
+                   root=root, icon=icon, dry_parameter=dry_parameter, presets=presets, grayscale=grayscale)
+    if grayscale:
+        from .native import validate_panel
+        validate_panel(result)
+    return result
 
 
 # Machine numbers. Projects store a track's engine, effect and page numbers, so a

@@ -35,13 +35,40 @@ leaves the browser.
    how to power cycle, check that the menu is gone, and reinstall. After reinstalling,
    **Try again** goes straight to enabling the dev menu for the same computer.
 3. Select machines. Synth rows have a playable preview of their C++ sound and
-   display code; each row shows its code, data and state size against the
-   memory meter. Machines from the [catalog](catalog.md) are marked
+   display code. Open **Preview controls** to adjust parameters, play the
+   keyboard and set its volume. The controls start collapsed; reopening them
+   keeps parameter values, and closing them stops preview notes. Each row shows
+   its code, data and state size against the memory meter.
+   Machines from the [catalog](catalog.md) are marked
    **Community** and start unselected; their details name the maintainer and
    link to the machine's code at the commit the catalog pins. Open-XY's own
    example machines from the catalog are labelled as Open-XY machines. A
    [personal kit](#export-a-kit)'s own machines are marked **Yours**.
-4. Follow the installation guide using the remembered computer choice. Mac
+4. In **Settings**, **I want my machines to be grayscale** is selected by default.
+   **Preview selected machines** opens a visual preview of every selected machine
+   with the current setting applied. Screens animate where a browser preview is
+   available; clicking one triggers its display without playing sound. Machines
+   using stock screens are identified when no visual preview is available.
+   Use **Grayscale / Original** inside the preview to compare both designs without
+   changing your installation setting. Reopening the preview starts with that setting.
+   Choose **I want my machines as they are** to keep the original artwork. Grayscale
+   converts the selected machines' custom SVG screens, including text, strokes,
+   fills and the palette entries used by animations. It preserves geometry,
+   opacity and motion; sample engines and effects retain their stock screens.
+   Custom screens that are already grayscale, including all animation palette
+   entries, retain their original SVG bytes and hashes unchanged.
+   For colorful originals, a machine's validated developer-authored
+   [grayscale variant](display.md#grayscale-artwork) takes priority over automatic
+   conversion. Without one, the builder separates distinct hue families into
+   gray ranges, using brightness as a secondary cue and one consistent palette
+   throughout animations. The tonal spacing adapts to the number of distinct
+   colors and shades, giving sparse palettes wider separation. Neutral grays
+   remain unchanged. Both routes check the packaged SVG paints before
+   installation; see the [conversion behavior](display.md#grayscale-artwork).
+   Invalid declared variants or unsupported paints stop the build
+   with a message naming the machine; choose colorful or use corrected artwork.
+   Changing this setting discards the prepared download and requires a new build.
+5. Follow the installation guide using the remembered computer choice. Mac
    browsers with WebUSB send the files directly; Windows downloads a ZIP to
    copy with File Explorer. The OS write step on the device is still manual.
 
@@ -54,6 +81,12 @@ The ZIP contains:
 | `content/display/*.svg` | New screens for the selected machines; keep the stock files |
 | `content/presets/<machine>/*.json` | Each selected instrument's init preset, `default.json`, and its own [presets](api.md#presets), in the instrument's folder |
 | `layout.json`, hashes | Keep `layout.json`: it holds your machines' numbers, and loading it into the builder next time keeps them for your projects |
+
+The ZIP and direct transfer use the same prepared files. `build.json` records
+the graphics setting and hashes of the final artwork. **I want my machines as
+they are** keeps the original SVG bytes; automatic grayscale conversion changes
+only paint attributes in the packaged
+screens, without modifying the machines' source or audio code.
 
 Every build shows its release at boot, `OPEN 0.0.2-1.2.1` for 0.0.2, the version in
 [`VERSION`](../VERSION) that the builder also shows under its name and records in
@@ -115,6 +148,9 @@ collection without uploading an OS file. Append a machine ID, for example
 `#preview/machines/fm2op`, to open its details directly. Installation stays disabled;
 the **OS** button returns to the normal builder entry. A configured collection is
 required for machine previews.
+
+`#preview/settings` opens the Settings step without an OS file. It also keeps
+installation disabled; returning to Machines auditions the chosen graphics mode.
 
 Installation screens have direct preview links, such as
 `http://127.0.0.1:8918/#preview/mac/transfer`, `#preview/mac/exit-transfer`

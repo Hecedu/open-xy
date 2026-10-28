@@ -1,3 +1,7 @@
+import * as Graphics from '../sdk/browser/graphics.mjs';
+export const artworkForGraphics = Graphics.artworkForGraphics;
+export const selectArtwork = Graphics.selectArtwork;
+
 // Browser-only linker and container writer for a maintainer-curated kit.
 // No compiler, device access, network requests, or arbitrary address input.
 // Every firmware rule (edits, hooks, identity ranges, catalog offsets, table
@@ -264,6 +268,7 @@ export async function openKit(kit) {
     'Firmware edit profile is not the reviewed profile');
   checkNumbers(kit);
   check(kit.machines.every(validOrigin), 'Invalid machine origin or source');
+  for (const machine of kit.machines) if (Object.hasOwn(machine, 'grayscaleArtwork')) selectArtwork(machine, 'colorful');
   // The bundled stock menu is authenticated where it is used (buildAssets).
   check(typeof kit.stockCatalog === 'string' && kit.stockCatalog.length <= 2 * 1024 ** 2, 'Missing bundled stock menu');
   check(await screenTemplateOk(kit), 'Platform screen template differs from the supported ABI');
@@ -619,7 +624,8 @@ function defaultPreset(machine) {
   };
 }
 
-export async function buildAssets(kit, selection, catalog, numbers) {
+export async function buildAssets(kit, selection, catalog, numbers, {graphics = 'colorful'} = {}) {
+  check(['colorful', 'grayscale'].includes(graphics), 'Invalid machine graphics setting');
   check(await sha256(catalog) === kit.profile.stock_catalog_sha256, 'The site’s machine data is damaged. Reload this page.');
   const machines = kit.machines.filter(m => selection.includes(m.id));
   // Each machine's entry ends its stock list; the offsets are bound to the
@@ -645,7 +651,13 @@ export async function buildAssets(kit, selection, catalog, numbers) {
     check(baseSvg.split('</svg>').length === 2, 'Unexpected stock artwork boundary');
     for (const m of machines.filter(m => m.artwork)) {
       check(/^[a-z][a-z0-9_]*\.svg$/.test(m.asset), 'Invalid artwork filename');
-      files['content/display/' + m.asset] = utf8.encode(baseSvg.replace('</svg>', m.artwork + '</svg>'));
+      try {
+        const fragment = selectArtwork(m, graphics);
+        const artwork = baseSvg.replace('</svg>', fragment + '</svg>');
+        files['content/display/' + m.asset] = utf8.encode(artwork);
+      } catch (error) {
+        throw new Error('Could not prepare ' + m.id + ' graphics: ' + error.message + '. Choose colorful or use corrected machine artwork.');
+      }
     }
   }
   return files;

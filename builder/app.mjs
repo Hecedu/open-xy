@@ -11,7 +11,7 @@ document.querySelectorAll('[data-icon]').forEach(el => el.append(Visuals.icon(el
 document.querySelectorAll('[data-device-art]').forEach(el => el.append(Visuals.device()));
 // Preview links can show the guide immediately; using the builder still needs acknowledgement.
 let acknowledged = false;
-let machinePreview = false, loadCollection;
+let builderPreview = false, loadCollection;
 const browserAllowed = supportsDeviceApis();
 $('browser-blocked').hidden = browserAllowed;
 $('risk-acknowledgement').checked = false;
@@ -19,6 +19,7 @@ $('risk-acknowledgement').disabled = !browserAllowed;
 $('risk-continue').disabled = true;
 const colors = ['var(--machine-1)', 'var(--machine-2)', 'var(--machine-3)', 'var(--machine-4)'];
 const kib = n => (n / 1024).toFixed(1) + ' KiB';
+let graphics = 'grayscale';
 let kit, stock, catalog, selected = [], inspected, linked, downloadUrl, built, layout, revision = 0;
 // The machine numbers of this person's firmware (core.mjs assignNumbers): from their
 // last build here, or a layout.json they load. Kept in this browser as a convenience;
@@ -43,12 +44,13 @@ function invalidate() {
   if (downloadUrl) { URL.revokeObjectURL(downloadUrl); downloadUrl = null; }
   $('download').removeAttribute('href');
   $('flow-download').removeAttribute('href');
-  document.querySelector('[data-step="3"]').disabled = true;
+  document.querySelector('[data-step="4"]').disabled = true;
 }
 function navigate(step) {
   stopAudio();
-  if (machinePreview && step !== 2) {
-    machinePreview = false;
+  if ($('selected-previews').open) $('selected-previews').close();
+  if (builderPreview && ![2, 3].includes(step)) {
+    builderPreview = false;
     history.replaceState(null, '', location.pathname + location.search);
     ready();
     if (!acknowledged) { showEntryGate(); return; }
@@ -63,8 +65,12 @@ function navigate(step) {
 }
 function ready() {
   $('choose').disabled = !(kit && stock);
-  document.querySelector('.steps [data-step="2"]').disabled = !(kit && (stock || machinePreview));
-  $('build').disabled = machinePreview || !(stock && linked);
+  document.querySelector('.steps [data-step="2"]').disabled = !(kit && (stock || builderPreview));
+  const canConfigure = !!(kit && linked && (stock || builderPreview));
+  document.querySelector('.steps [data-step="3"]').disabled = !canConfigure;
+  $('settings-next').disabled = !canConfigure;
+  $('build').disabled = builderPreview || !(stock && linked);
+  $('preview-selected').disabled = !(kit && selected.length);
 }
 
 const wizard = Wizard.createWizard({getKit: () => kit, getSelected: () => selected, hasDownload: () => !!downloadUrl, getFiles: () => built,
@@ -86,20 +92,21 @@ function showEntryGate() {
 }
 function openPreviewLink() {
   const match = /^#preview\/machines(?:\/([a-z0-9_-]+))?$/.exec(location.hash);
-  const leavingMachines = machinePreview && !match;
-  machinePreview = !!match;
-  if (machinePreview || wizard.previewLink(location.hash)) {
+  const settingsPreview = location.hash === '#preview/settings';
+  const leavingMachines = builderPreview && !match && !settingsPreview;
+  builderPreview = !!match || settingsPreview;
+  if (builderPreview || wizard.previewLink(location.hash)) {
     $('browser-gate').hidden = true;
     $('risk-gate').hidden = true;
     $('builder-workspace').hidden = false;
     $('builder-workspace').inert = false;
     if (!acknowledged) $('status').textContent = '';
-    if (machinePreview) {
+    if (builderPreview) {
       loadCollection?.();
       $('phase-nav').hidden = false;
-      navigate(2);
+      navigate(settingsPreview ? 3 : 2);
       if (kit) {
-        inspect(kit.machines.find(m => m.id === match[1])?.id ?? kit.machines[0].id);
+        inspect(kit.machines.find(m => m.id === match?.[1])?.id ?? kit.machines[0].id);
         recalculate();
       }
     } else {
@@ -108,7 +115,7 @@ function openPreviewLink() {
     }
   } else if (!acknowledged) showEntryGate();
   else if (leavingMachines) navigate(1);
-  if (machinePreview || leavingMachines) ready();
+  if (builderPreview || leavingMachines) ready();
 }
 window.addEventListener('hashchange', openPreviewLink);
 openPreviewLink();
@@ -116,7 +123,7 @@ openPreviewLink();
 // Leaving a preview still returns to the gate; installing requires acknowledgement.
 await new Promise(resolve => {
   loadCollection = resolve;
-  if (machinePreview) resolve();
+  if (builderPreview) resolve();
   $('risk-acknowledgement').onchange = () => {
     $('risk-continue').disabled = !browserAllowed || !$('risk-acknowledgement').checked;
   };
@@ -137,6 +144,136 @@ async function readBounded(file, limit) {
   Core.requireThat(file && file.size > 0 && file.size <= limit, 'Missing or oversized file');
   return new Uint8Array(await file.arrayBuffer());
 }
+// These authored examples use the same paint conversion as packaged artwork.
+const graphicsExamples = Visuals.graphicsExamples(Core.artworkForGraphics);
+$('graphics-examples').replaceChildren(...graphicsExamples.elements);
+$('preview-controls-panel').ontoggle = () => {
+  if (!$('preview-controls-panel').open) stopAudio();
+};
+let selectedPreviewRevision = 0, disposeSelectedPreviews = () => {};
+function clearSelectedPreviews() {
+  ++selectedPreviewRevision;
+  disposeSelectedPreviews();
+  disposeSelectedPreviews = () => {};
+  $('selected-previews-list').replaceChildren();
+}
+$('selected-previews').addEventListener('close', clearSelectedPreviews);
+window.addEventListener('pagehide', clearSelectedPreviews);
+$('close-selected-previews').onclick = () => $('selected-previews').close();
+$('preview-selected').onclick = async () => {
+  if (!kit || !selected.length) return;
+  stopAudio(); clearSelectedPreviews();
+  const dialog = $('selected-previews'), ticket = selectedPreviewRevision;
+  let mode = graphics;
+  const machines = kit.machines.filter(machine => selected.includes(machine.id));
+  const frames = [], updates = [], urls = new Set(), reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  const modeInputs = [$('preview-graphics-grayscale'), $('preview-graphics-original')];
+  const updateMode = () => {
+    modeInputs.forEach(input => { input.checked = input.value === mode; });
+    $('selected-previews-note').textContent = `${machines.length} selected · ${mode === 'grayscale' ? 'Grayscale' : 'Original design'}. Preview only; your installation setting stays unchanged. Click an animated screen to trigger it. No sound plays.`;
+    updates.forEach(update => update());
+  };
+  modeInputs.forEach(input => {
+    input.onchange = () => {
+      if (!input.checked || mode === input.value) return;
+      mode = input.value; updateMode();
+    };
+  });
+  updateMode();
+  let handle, previous = 0;
+  disposeSelectedPreviews = () => {
+    cancelAnimationFrame(handle); urls.forEach(url => URL.revokeObjectURL(url));
+    modeInputs.forEach(input => { input.onchange = null; });
+  };
+  dialog.showModal();
+  function animate(time) {
+    if (ticket !== selectedPreviewRevision) return;
+    if (time - previous >= 32) {
+      const elapsed = previous ? Math.min(100, Math.round((time - previous) * 1024 / 1000)) : 0;
+      if (!document.hidden && !reduced.matches) frames.forEach(frame => frame(elapsed));
+      previous = time;
+    }
+    handle = requestAnimationFrame(animate);
+  }
+  for (const m of machines) {
+    const figure = node('figure', undefined, 'selected-machine-preview');
+    const screen = node('div', undefined, 'selected-machine-screen');
+    const caption = node('figcaption', m.artwork ? 'Loading preview…' : 'Stock screen · kept unchanged');
+    figure.append(node('h3', m.name), screen, caption);
+    $('selected-previews-list').append(figure);
+    if (!m.artwork) {
+      screen.append(node('p', 'This machine uses a stock screen. A browser preview is not available.'));
+      continue;
+    }
+    let renderArtwork, staticUrl;
+    const update = () => {
+      try {
+        const artwork = Core.selectArtwork(m, mode);
+        caption.textContent = mode === 'colorful' ? 'Original design' : artwork === m.artwork
+          ? 'Grayscale by design · kept intact' : m.grayscaleArtwork !== undefined
+            ? 'Grayscale design provided by the developer.' : 'Automatic grayscale conversion';
+        renderArtwork?.(artwork);
+      } catch (error) {
+        screen.replaceChildren(node('p', 'Preview unavailable: ' + error.message));
+        caption.textContent = 'Check the machine artwork before installing.';
+      }
+    };
+    updates.push(update);
+    if (!m.preview) {
+      renderArtwork = artwork => {
+        if (staticUrl) { URL.revokeObjectURL(staticUrl); urls.delete(staticUrl); }
+        staticUrl = URL.createObjectURL(new Blob([kit.screenTemplate.replace('</svg>', artwork + '</svg>')], {type:'image/svg+xml'}));
+        urls.add(staticUrl);
+        const image = node('img'); image.src = staticUrl; image.alt = m.name + ' display preview'; screen.replaceChildren(image);
+      };
+      update(); continue;
+    }
+    {
+      screen.append(node('p', 'Loading preview…'));
+      // Compile independently: one unavailable preview must not hide the other machines.
+      (async () => {
+        try {
+          const wasm = Core.decode64(m.preview.wasm);
+          Core.requireThat(await Core.sha256(wasm) === m.preview.sha256, 'Preview module hash mismatch');
+          const compiled = await WebAssembly.compile(wasm);
+          if (ticket !== selectedPreviewRevision) return;
+          const display = new Retained.PreviewDisplay(compiled);
+          let renderer;
+          const ns = 'http://www.w3.org/2000/svg', canvas = document.createElementNS(ns, 'svg');
+          const header = document.createElementNS(ns, 'g');
+          canvas.setAttribute('viewBox', '0 0 480 220'); canvas.setAttribute('role', 'button');
+          canvas.setAttribute('tabindex', '0'); canvas.setAttribute('aria-label', 'Trigger ' + m.name + ' display preview');
+          const parameters = Object.assign(Array(8).fill(0), m.preview.defaults), shown = [0, 1, 2, 3];
+          let serial = 1;
+          const frame = elapsed => {
+            if (!renderer) return;
+            try {
+              renderer.apply(display.tick(shownControls(parameters, shown), elapsed, serial, 0, reduced.matches));
+              header.innerHTML = Retained.headerSvg(shown.map(slot => m.controls[slot].toLowerCase()),
+                shown.map(slot => renderer.header[slot] || String(Math.round(parameters[slot] / 0x7fffffff * 100))));
+            } catch (error) {
+              const index = frames.indexOf(frame); if (index !== -1) frames.splice(index, 1);
+              canvas.removeAttribute('tabindex'); canvas.removeAttribute('role');
+              caption.textContent = 'Animation unavailable: ' + error.message;
+            }
+          };
+          // Swap the SVG while retaining the display instance, parameters and animation state.
+          renderArtwork = artwork => {
+            renderer = new Retained.SvgDisplay(artwork, m.preview.graphics);
+            canvas.replaceChildren(header, renderer.root); screen.replaceChildren(canvas); frame(0);
+          };
+          frames.push(frame); update();
+          if (frames.length === 1 && !reduced.matches) handle = requestAnimationFrame(animate);
+          const trigger = () => { serial = serial + 1 >>> 0; frame(0); };
+          canvas.onclick = trigger;
+          canvas.onkeydown = event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); trigger(); } };
+        } catch (error) {
+          if (ticket === selectedPreviewRevision) screen.replaceChildren(node('p', 'Preview unavailable: ' + error.message));
+        }
+      })();
+    }
+  }
+};
 let ticket = 0;
 async function acceptFirmware(file, isCurrent = () => true) {
   if (!file || !kit || !isCurrent()) return false;
@@ -246,7 +383,7 @@ async function inspect(id) {
       const compiled = await WebAssembly.compile(wasm);
       if (ticket !== previewRevision) return;
       const display = new Retained.PreviewDisplay(compiled);
-      const renderer = new Retained.SvgDisplay(m.artwork, m.preview.graphics);
+      const renderer = new Retained.SvgDisplay(Core.selectArtwork(m, graphics), m.preview.graphics);
       const ns = 'http://www.w3.org/2000/svg', canvas = document.createElementNS(ns, 'svg');
       canvas.setAttribute('viewBox', '0 0 480 220'); canvas.setAttribute('aria-label', m.name + ' display preview');
       // The device page: the stock four-control header under the machine's drawing,
@@ -399,11 +536,11 @@ function recalculate() {
   ready();
 }
 async function build() {
-  if (machinePreview || !acknowledged) return;
+  if (builderPreview || !acknowledged) return;
   const ticket = revision; $('build').disabled = true; status('Linking and checking your build…');
   try {
-    const selection = [...selected], result = Core.linkKit(kit, selection, numbers);
-    const files = await Core.buildAssets(kit, selection, catalog, result.numbers);
+    const selection = [...selected], settings = {graphics}, result = Core.linkKit(kit, selection, numbers);
+    const files = await Core.buildAssets(kit, selection, catalog, result.numbers, settings);
     files['os.ldr'] = await Core.patchFirmware(kit, result, stock, {profiling: false});
     const hashes = {};
     for (const [name, bytes] of Object.entries(files)) hashes[name] = await Core.sha256(bytes);
@@ -412,20 +549,34 @@ async function build() {
     const encode = value => new TextEncoder().encode(JSON.stringify(value, null, 2) + '\n');
     files['layout.json'] = encode(nextLayout);
     files['build.json'] = encode({format: 'opxy-kit-build/1', version: kit.version, source_sha256: kit.profile.stock_sha256,
-      sizes: result.sizes, files: hashes, hardware_qualified: false, cpu_measured: false});
+      settings, sizes: result.sizes, files: hashes, hardware_qualified: false, cpu_measured: false});
     const zip = Core.zipFiles(files);
     if (ticket !== revision) return;
     layout = nextLayout; built = files; rememberNumbers(result.numbers); downloadUrl = URL.createObjectURL(new Blob([zip], {type: 'application/zip'}));
     $('download').href = $('flow-download').href = downloadUrl;
     $('download-summary').textContent = kit.machines.filter(m => selection.includes(m.id)).map(m => m.name).join(' + ');
+    $('download-graphics').textContent = settings.graphics === 'grayscale' ? 'Machine graphics: grayscale' : 'Machine graphics: original colors';
     $('bundle-art').replaceChildren(Visuals.bundle(Object.keys(files)));
     $('output-hash').textContent = 'OS (os.ldr) SHA-256: ' + hashes['os.ldr'];
-    document.querySelector('.steps [data-step="3"]').disabled = false;
-    status(); navigate(3);
+    document.querySelector('.steps [data-step="4"]').disabled = false;
+    status(); navigate(4);
   } catch (error) { if (ticket === revision) fail(error); } finally { ready(); }
 }
 document.querySelectorAll('[data-step]').forEach(b => b.onclick = () => navigate(Number(b.dataset.step)));
 $('choose').onclick = () => { navigate(2); recalculate(); };
+$('settings-next').onclick = () => navigate(3);
+for (const input of document.querySelectorAll('input[name="graphics"]')) {
+  input.checked = input.value === graphics;
+  input.onchange = () => {
+    if (!input.checked) return;
+    graphicsExamples.setGraphics(input.value);
+    if (graphics === input.value) return;
+    graphics = input.value; invalidate(); ready();
+    if (inspected) inspect(inspected);
+  };
+  // Re-selecting the active option also restores a manually adjusted comparison.
+  input.onclick = input.onchange;
+}
 $('build').onclick = build;
 $('firmware').onchange = e => acceptFirmware(e.target.files[0]);
 const drop = $('firmware-drop');
