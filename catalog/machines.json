@@ -81,9 +81,16 @@
       "maintainer": "Gokux",
       "status": "draft",
       "repository": "https://github.com/Gokux/opxy-machines",
-      "tag": "v1.0.0",
-      "commit": "35aefa7235b71032fd858e58112a15e0560754f8",
-      "path": "drone"
+      "tag": "v1.1.3",
+      "commit": "fea3e3300624ed54a7fd1b8def0a8f3384819f9a",
+      "path": "drone",
+      "cpu": {
+        "benchmark": "opxy-synth-c8-v1",
+        "commit": "fea3e3300624ed54a7fd1b8def0a8f3384819f9a",
+        "firmware_sha256": "8b78113b8f3034bed59b181d2df04740a3001b7baec460245a8b25462aece9f2",
+        "runs": 3,
+        "block_percent": 2.616922
+      }
     },
     {
       "id": "solar",
@@ -91,9 +98,16 @@
       "maintainer": "Gokux",
       "status": "draft",
       "repository": "https://github.com/Gokux/opxy-machines",
-      "tag": "v1.0.0",
-      "commit": "35aefa7235b71032fd858e58112a15e0560754f8",
-      "path": "solar"
+      "tag": "v1.1.3",
+      "commit": "fea3e3300624ed54a7fd1b8def0a8f3384819f9a",
+      "path": "solar",
+      "cpu": {
+        "benchmark": "opxy-synth-c8-v1",
+        "commit": "fea3e3300624ed54a7fd1b8def0a8f3384819f9a",
+        "firmware_sha256": "8b78113b8f3034bed59b181d2df04740a3001b7baec460245a8b25462aece9f2",
+        "runs": 3,
+        "block_percent": 2.363622
+      }
     },
     {
       "id": "papasrapa",
@@ -101,9 +115,16 @@
       "maintainer": "Gokux",
       "status": "draft",
       "repository": "https://github.com/Gokux/opxy-machines",
-      "tag": "v1.0.0",
-      "commit": "35aefa7235b71032fd858e58112a15e0560754f8",
-      "path": "papasrapa"
+      "tag": "v1.1.3",
+      "commit": "fea3e3300624ed54a7fd1b8def0a8f3384819f9a",
+      "path": "papasrapa",
+      "cpu": {
+        "benchmark": "opxy-synth-c8-v1",
+        "commit": "fea3e3300624ed54a7fd1b8def0a8f3384819f9a",
+        "firmware_sha256": "8b78113b8f3034bed59b181d2df04740a3001b7baec460245a8b25462aece9f2",
+        "runs": 3,
+        "block_percent": 2.999924
+      }
     },
     {
       "id": "hurdygurdy",
@@ -221,6 +242,125 @@
       }
     },
     {
+      "id": "mmdyn",
+      "kind": "synth",
+      "maintainer": "mmockett",
+      "status": "published",
+      "repository": "https://github.com/mmockett/OP-XY-MNMD",
+      "tag": "v1.1.3",
+      "commit": "ae67d287103c42c2fee486ba0ceaf93bf1da316d",
+      "path": "machines/mmdyn",
+      "cpu": {
+        "benchmark": "opxy-synth-c8-v1",
+        "commit": "ae67d287103c42c2fee486ba0ceaf93bf1da316d",
+        "firmware_sha256": "06ba7935344cbfb9cdbeb8ab4cffeae063de55788df080e8cae4862ab7b5ddfc",
+        "runs": 3,
+        "block_percent": 2.549783
+      }
+    },
+    {
+      "id": "mmens",
+      "kind": "synth",
+      "maintainer": "mmockett",
+      "status": "published",
+      "repository": "https://github.com/mmockett/OP-XY-MNMD",
+      "tag": "v1.1.3",
+      "commit": "ae67d287103c42c2fee486ba0ceaf93bf1da316d",
+      "path": "machines/mmens",
+      "cpu": {
+        "benchmark": "opxy-synth-c8-v1",
+        "commit": "ae67d287103c42c2fee486ba0ceaf93bf1da316d",
+        "firmware_sha256": "06ba7935344cbfb9cdbeb8ab4cffeae063de55788df080e8cae4862ab7b5ddfc",
+        "runs": 3,
+        "block_percent": 2.795453
+      }
+    },
+    {
+      "id": "mmpar",
+      "kind": "synth",
+      "maintainer": "mmockett",
+      "status": "published",
+      "repository": "https://github.com/mmockett/OP-XY-MNMD",
+      "tag": "v1.1.3",
+      "commit": "ae67d287103c42c2fee486ba0ceaf93bf1da316d",
+      "path": "machines/mmpar",
+      "cpu": {
+        "benchmark": "opxy-synth-c8-v1",
+        "commit": "ae67d287103c42c2fee486ba0ceaf93bf1da316d",
+        "firmware_sha256": "06ba7935344cbfb9cdbeb8ab4cffeae063de55788df080e8cae4862ab7b5ddfc",
+        "runs": 3,
+        "block_percent": 3.40734
+      }
+    },
+    {
+      "id": "mmpulse",
+      "kind": "synth",
+      "maintainer": "mmockett",
+      "status": "published",
+      "repository": "https://github.com/mmockett/OP-XY-MNMD",
+      "tag": "v1.1.3",
+      "commit": "ae67d287103c42c2fee486ba0ceaf93bf1da316d",
+      "path": "machines/mmpulse",
+      "cpu": {
+        "benchmark": "opxy-synth-c8-v1",
+        "commit": "ae67d287103c42c2fee486ba0ceaf93bf1da316d",
+        "firmware_sha256": "06ba7935344cbfb9cdbeb8ab4cffeae063de55788df080e8cae4862ab7b5ddfc",
+        "runs": 3,
+        "block_percent": 2.644388
+      }
+    },
+    {
+      "id": "mmsid",
+      "kind": "synth",
+      "maintainer": "mmockett",
+      "status": "published",
+      "repository": "https://github.com/mmockett/OP-XY-MNMD",
+      "tag": "v1.1.3",
+      "commit": "ae67d287103c42c2fee486ba0ceaf93bf1da316d",
+      "path": "machines/mmsid",
+      "cpu": {
+        "benchmark": "opxy-synth-c8-v1",
+        "commit": "ae67d287103c42c2fee486ba0ceaf93bf1da316d",
+        "firmware_sha256": "06ba7935344cbfb9cdbeb8ab4cffeae063de55788df080e8cae4862ab7b5ddfc",
+        "runs": 3,
+        "block_percent": 1.86923
+      }
+    },
+    {
+      "id": "mmstat",
+      "kind": "synth",
+      "maintainer": "mmockett",
+      "status": "published",
+      "repository": "https://github.com/mmockett/OP-XY-MNMD",
+      "tag": "v1.1.3",
+      "commit": "ae67d287103c42c2fee486ba0ceaf93bf1da316d",
+      "path": "machines/mmstat",
+      "cpu": {
+        "benchmark": "opxy-synth-c8-v1",
+        "commit": "ae67d287103c42c2fee486ba0ceaf93bf1da316d",
+        "firmware_sha256": "06ba7935344cbfb9cdbeb8ab4cffeae063de55788df080e8cae4862ab7b5ddfc",
+        "runs": 3,
+        "block_percent": 2.59556
+      }
+    },
+    {
+      "id": "mmvo6",
+      "kind": "synth",
+      "maintainer": "mmockett",
+      "status": "published",
+      "repository": "https://github.com/mmockett/OP-XY-MNMD",
+      "tag": "v1.1.3",
+      "commit": "ae67d287103c42c2fee486ba0ceaf93bf1da316d",
+      "path": "machines/mmvo6",
+      "cpu": {
+        "benchmark": "opxy-synth-c8-v1",
+        "commit": "ae67d287103c42c2fee486ba0ceaf93bf1da316d",
+        "firmware_sha256": "06ba7935344cbfb9cdbeb8ab4cffeae063de55788df080e8cae4862ab7b5ddfc",
+        "runs": 3,
+        "block_percent": 3.416495
+      }
+    },
+    {
       "id": "breadboard",
       "kind": "synth",
       "maintainer": "lowlevelgamedev",
@@ -236,6 +376,120 @@
         "runs": 3,
         "block_percent": 2.171,
         "report": "https://github.com/meemknight/OPXY-breadboard/blob/4a5f90abd751164af85abfd850bc791df0c3ba8e/CPU_PROFILE.md"
+      }
+    },
+    {
+      "id": "morphose",
+      "kind": "synth",
+      "maintainer": "blen2r",
+      "status": "reserved"
+    },
+    {
+      "id": "grains",
+      "kind": "sample",
+      "maintainer": "mmockett",
+      "status": "reserved"
+    },
+    {
+      "id": "wane",
+      "kind": "synth",
+      "maintainer": "mmockett",
+      "status": "published",
+      "repository": "https://github.com/mmockett/OP-XY-Hexagon",
+      "tag": "v1.0.0",
+      "commit": "cde0abdfdd15f64389134157942237608ff39cf6",
+      "path": "wane",
+      "cpu": {
+        "benchmark": "opxy-synth-c8-v1",
+        "commit": "cde0abdfdd15f64389134157942237608ff39cf6",
+        "firmware_sha256": "cf1a369f5ad63ce6e1d6e2abec3e08eb1ef546acd0331141f01801d2e5e85207",
+        "runs": 3,
+        "block_percent": 4.104677
+      }
+    },
+    {
+      "id": "bloom",
+      "kind": "synth",
+      "maintainer": "mmockett",
+      "status": "published",
+      "repository": "https://github.com/mmockett/OP-XY-Hexagon",
+      "tag": "v1.0.0",
+      "commit": "cde0abdfdd15f64389134157942237608ff39cf6",
+      "path": "bloom",
+      "cpu": {
+        "benchmark": "opxy-synth-c8-v1",
+        "commit": "cde0abdfdd15f64389134157942237608ff39cf6",
+        "firmware_sha256": "cf1a369f5ad63ce6e1d6e2abec3e08eb1ef546acd0331141f01801d2e5e85207",
+        "runs": 3,
+        "block_percent": 6.242466
+      }
+    },
+    {
+      "id": "hollow",
+      "kind": "synth",
+      "maintainer": "mmockett",
+      "status": "published",
+      "repository": "https://github.com/mmockett/OP-XY-Hexagon",
+      "tag": "v1.0.0",
+      "commit": "cde0abdfdd15f64389134157942237608ff39cf6",
+      "path": "hollow",
+      "cpu": {
+        "benchmark": "opxy-synth-c8-v1",
+        "commit": "cde0abdfdd15f64389134157942237608ff39cf6",
+        "firmware_sha256": "cf1a369f5ad63ce6e1d6e2abec3e08eb1ef546acd0331141f01801d2e5e85207",
+        "runs": 3,
+        "block_percent": 4.895094
+      }
+    },
+    {
+      "id": "orbit",
+      "kind": "synth",
+      "maintainer": "mmockett",
+      "status": "published",
+      "repository": "https://github.com/mmockett/OP-XY-Hexagon",
+      "tag": "v1.0.0",
+      "commit": "cde0abdfdd15f64389134157942237608ff39cf6",
+      "path": "orbit",
+      "cpu": {
+        "benchmark": "opxy-synth-c8-v1",
+        "commit": "cde0abdfdd15f64389134157942237608ff39cf6",
+        "firmware_sha256": "cf1a369f5ad63ce6e1d6e2abec3e08eb1ef546acd0331141f01801d2e5e85207",
+        "runs": 3,
+        "block_percent": 2.391089
+      }
+    },
+    {
+      "id": "bend",
+      "kind": "synth",
+      "maintainer": "mmockett",
+      "status": "published",
+      "repository": "https://github.com/mmockett/OP-XY-Hexagon",
+      "tag": "v1.0.0",
+      "commit": "cde0abdfdd15f64389134157942237608ff39cf6",
+      "path": "bend",
+      "cpu": {
+        "benchmark": "opxy-synth-c8-v1",
+        "commit": "cde0abdfdd15f64389134157942237608ff39cf6",
+        "firmware_sha256": "cf1a369f5ad63ce6e1d6e2abec3e08eb1ef546acd0331141f01801d2e5e85207",
+        "runs": 3,
+        "block_percent": 2.575723
+      }
+    },
+    {
+      "id": "moth",
+      "kind": "synth",
+      "maintainer": "mmockett",
+      "status": "published",
+      "repository": "https://github.com/mmockett/OP-XY-Hexagon",
+      "tag": "v1.0.0",
+      "commit": "cde0abdfdd15f64389134157942237608ff39cf6",
+      "path": "moth",
+      "cpu": {
+        "benchmark": "opxy-synth-c8-v1",
+        "commit": "cde0abdfdd15f64389134157942237608ff39cf6",
+        "firmware_sha256": "cf1a369f5ad63ce6e1d6e2abec3e08eb1ef546acd0331141f01801d2e5e85207",
+        "runs": 3,
+        "block_percent": 4.910353
       }
     }
   ]

@@ -41,7 +41,7 @@ python sdk.py preview --machine ../open-xy-core-machines/machines/fm2op --out lo
 python tools/serve_harness.py --preview local/preview-001
 ```
 
-Open http://127.0.0.1:8917/ and click **Enable audio**. Use
+Open http://127.0.0.1:8917/ and play a key or click **Play phrase**; audio starts automatically. Use
 `machines/macroosc` or `machines/karplus` for another synth. The
 [preview guide](docs/preview.md) covers iteration, patches and automation.
 
