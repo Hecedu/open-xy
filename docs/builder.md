@@ -53,10 +53,14 @@ leaves the browser.
    collections without firmware extensions. It starts off; enabling it changes custom
    screens while leaving stock screens unchanged. It adds no extension runtime
    memory; the selection summary lists the graphics choice separately.
-   Open **Preview** to see and customize the selected machines together. Each custom screen has an **Install graphics** control:
-   **Use default**, **Enforce grayscale**, or **Keep original design**. Explicit
-   choices stay in place when you change the default. Choosing **Use default**
-   clears that machine's override. Stock screens remain unchanged and have no
+   Open **Configure** to see and customize the selected machines together. Checking
+   the option sets grayscale as the default for all selected custom screens. Each custom screen has a **Screen appearance** control:
+   **Enforce grayscale** or **Keep original design**, showing its current setting.
+   Choosing a different appearance creates an individual override; choosing the
+   overall default again clears it. The extension checkbox is on whenever any
+   selected custom screen is configured for grayscale, and off when all use their
+   original designs. Opening or closing **Configure** does not change it.
+   Stock screens remain unchanged and have no
    override control. Overrides are retained while changing the selection in this
    session; only selected machines' overrides enter the installation package.
    The same dialog previews every selected machine with its setting applied.
@@ -65,13 +69,16 @@ leaves the browser.
    reuses the same frame, and reopening reuses the cached snapshots. Machines
    without a browser module show their static artwork with a fallback label.
    Machines using stock screens are identified when no visual preview is available.
-   The preview opens on **As configured**, showing each machine's effective
-   installation setting. Use **Grayscale / Original** to compare both designs
-   without changing those settings. Reopening always returns to **As configured**.
-   Changing **Install graphics** applies immediately and switches the preview
-   to **As configured**, so its effect is visible. **Done** or Escape closes the
-   dialog while keeping the choices.
-   Uncheck **Grayscale machine graphics** to keep the original artwork by default. Grayscale
+   The dialog always shows the installation settings. **Make all grayscale** and
+   **Restore all originals** set the default and apply it to every selected custom screen,
+   clearing those machines' overrides. Unselected machines' explicit overrides
+   stay in place. Both buttons update the graphics checkbox on Extensions;
+   stock screens remain unchanged. Use **Screen appearance** below each screen
+   to make individual exceptions. **Done** or Escape closes the dialog while
+   keeping the choices.
+   Checking **Grayscale machine graphics** sets every selected custom screen to
+   grayscale; unchecking it restores all their original designs. Both actions clear
+   the selected machines' overrides and preserve unselected machines' overrides. Grayscale
    converts the selected machines' custom SVG screens, including text, strokes,
    fills and the palette entries used by animations. It preserves geometry,
    opacity and motion; sample engines and effects retain their stock screens.

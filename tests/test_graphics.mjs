@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {artworkForGraphics, buildAssets, sha256, zipFiles} from '../builder/core.mjs';
 import * as Core from '../builder/core.mjs';
+import {createBuilder} from '../builder/app.mjs';
 import {selectArtwork, validateGrayscaleArtwork} from '../sdk/browser/graphics.mjs';
 import {graphicsExampleArtwork} from '../builder/visuals.mjs';
 
@@ -366,6 +367,14 @@ test('Extensions graphics defaults to original designs without firmware extensio
     showModal() { this.open = true; }
     close() { this.open = false; this.listeners.close?.(); }
     focus() {}
+    style = {setProperty() {}};
+    classList = {add() {}, toggle() {}};
+    get parentElement() { return new Element(); }
+    cloneNode() { return new Element(); }
+    querySelector() { return new Element(); }
+    querySelectorAll() { return []; }
+    closest() { return new Element(); }
+    reportValidity() { return true; }
   }
   const html = readFileSync(new URL('../builder/index.html', import.meta.url), 'utf8');
   const nav = html.match(/<nav class="steps"[\s\S]*?<\/nav>/)[0];
@@ -373,14 +382,11 @@ test('Extensions graphics defaults to original designs without firmware extensio
   assert.ok(!html.includes('id="settings-title"'));
   const extensionsPage = html.slice(html.indexOf('<section data-page="3"'), html.indexOf('<section data-page="4"'));
   assert.ok(extensionsPage.includes('id="grayscale-graphics"'));
-  assert.ok(extensionsPage.includes('id="preview-selected"'));
+  assert.match(extensionsPage, /id="preview-selected"[^>]*>Configure<\/button>/);
   assert.doesNotMatch(html, /<input\b[^>]*id="grayscale-graphics"[^>]*\bchecked\b/);
   assert.doesNotMatch(html, /<input\b[^>]*value="colorful"[^>]*\bchecked\b/);
   const elements = new Map([...html.matchAll(/\bid="([^"]+)"/g)].map(([, id]) => [id, new Element()]));
   const $ = id => { assert.ok(elements.has(id), id); return elements.get(id); };
-  $('preview-graphics-grayscale').value = 'grayscale';
-  $('preview-graphics-original').value = 'colorful';
-  $('preview-graphics-configured').value = 'configured';
   const graphicsInput = $('grayscale-graphics');
   const steps = [1, 2, 3, 4].map(step => Object.assign(new Element(), {dataset:{step:String(step)}}));
   const pages = steps.map(el => Object.assign(new Element(), {dataset:{page:el.dataset.step}}));
@@ -393,6 +399,7 @@ test('Extensions graphics defaults to original designs without firmware extensio
       querySelector:selector => {
         const step = /data-step="(\d)"/.exec(selector);
         if (step) return steps[Number(step[1]) - 1];
+        if (selector === '.memory-bar') return new Element();
         const page = /data-page="(\d)"/.exec(selector);
         assert.ok(page, selector);
         return selector.endsWith(' h1') ? $(titles[Number(page[1]) - 1]) : pages[Number(page[1]) - 1];
@@ -409,30 +416,40 @@ test('Extensions graphics defaults to original designs without firmware extensio
   }
   let wizardOptions, invalidations = 0, finishPatch, blockPatch = false;
   const previewModes = [];
+  let currentFixture;
   const fakeCore = {...Core,
     // Keep this test firmware-free: exercise the real app, asset writer and ZIP
     // with an authored kit; OS verification/linking have their own contract tests.
-    openKit:async () => { throw new Error('No collection loaded at startup'); },
-    linkKit:() => ({numbers:{}, sizes:{}}),
+    openKit:async data => ({...data, objects:[], extensions:[],
+      machines:data.machines.map(machine => ({controls:[], identity:{}, ...machine}))}),
+    chosenByDefault:machine => (currentFixture.selected ?? ['probe']).includes(machine.id),
+    decode64:value => value ? Core.decode64(value) : currentFixture.catalog,
+    moduleBytes:() => 2048,
+    recoverFirmware:async () => ({stock:Uint8Array.of(1)}),
+    linkKit:() => ({segments:[], numbers:{}, sizes:{allocated:0, available:2048, initialized:0, working:0}}),
     patchFirmware:async () => blockPatch ? new Promise(resolve => { finishPatch = resolve; }) : Uint8Array.of(1, 2, 3),
   };
-  const wizard = {invalidate() { invalidations++; }, navigate() {}, previewLink:() => false};
-  const source = readFileSync(new URL('../builder/app.mjs', import.meta.url), 'utf8').replace(/^import .*\r?\n/gm, '');
-  const AsyncFunction = Object.getPrototypeOf(async function() {}).constructor;
-  const api = await new AsyncFunction('Core', 'Wizard', 'Visuals', 'supportsDeviceApis', source + `
-    return {configure(value) {
-      kit = value.kit; catalog = value.catalog; stock = new Uint8Array(1);
-      selected = value.selected ?? ['probe']; linked = {}; builderPreview = false; acknowledged = true; updateOverrideCount(); ready();
-    }};`)(fakeCore, {createWizard:options => { wizardOptions = options; return wizard; }},
-    {reveal() {}, bundle:() => new Element(),
-      graphicsExamples:() => ({elements:[], setGraphics:mode => previewModes.push(mode)})}, () => true);
+  const wizard = {invalidate() { invalidations++; }, navigate() {}, previewLink:() => false,
+    clearSourceBackup() {}, setFirmwareState() {}};
+  const builder = await createBuilder({core:fakeCore,
+    wizardApi:{createWizard:options => { wizardOptions = options; return wizard; }},
+    visuals:{reveal() {}, icon:() => new Element(), bundle:() => new Element(),
+      graphicsExamples:() => ({elements:[], setGraphics:mode => previewModes.push(mode)})}, supportsBrowser:() => true});
+  const api = {async configure(value) {
+    currentFixture = value;
+    await builder.loadCollection(value.kit);
+    $('risk-acknowledgement').checked = true;
+    $('risk-form').onsubmit({preventDefault() {}});
+    assert.equal(await wizardOptions.onFirmware({name:'Authored test input', size:1,
+      arrayBuffer:async () => Uint8Array.of(1).buffer}), true);
+  }};
   assert.equal(graphicsInput.checked, false);
   assert.equal($('build').disabled, true); // Preview cannot install.
   const beforeClick = invalidations;
   graphicsInput.onchange();
   assert.equal(previewModes.at(-1), 'colorful');
   assert.equal(invalidations, beforeClick); // Restoring a preview does not rebuild.
-  api.configure(await fixture());
+  await api.configure(await fixture());
   assert.equal($('preview-selected').disabled, false);
   assert.equal($('extension-count').textContent, 'None selected');
   assert.deepEqual($('build-selection').children.slice(-2).map(e => e.textContent), ['Machine graphics', 'Original designs']);
@@ -450,44 +467,49 @@ test('Extensions graphics defaults to original designs without firmware extensio
   const grayPreviewUrl = previewImage().src;
   const grayPreview = await (await fetch(grayPreviewUrl)).text();
   assert.equal(grayPreview, (await fixture()).kit.screenTemplate.replace('</svg>', Core.selectArtwork((await fixture()).kit.machines[0], 'grayscale') + '</svg>'));
-  assert.match($('selected-previews-note').textContent, /As configured/);
-  assert.equal($('preview-graphics-configured').checked, true);
-  const beforeCompare = invalidations;
-  $('preview-graphics-original').checked = true;
-  $('preview-graphics-original').onchange();
+  assert.equal($('selected-previews-count').textContent, '1 machine selected');
+  const bulkControl = () => $('selected-previews-list').children[0].children[3].children[1];
+  const beforeAll = invalidations;
+  $('graphics-all-original').onclick();
   assert.equal($('selected-previews').open, true);
-  assert.equal($('preview-graphics-grayscale').checked, false);
-  assert.equal($('preview-graphics-original').checked, true);
+  assert.equal(graphicsInput.checked, false);
+  assert.equal(bulkControl().value, 'colorful');
+  assert.deepEqual(bulkControl().children.map(option => option.textContent), ['Enforce grayscale', 'Keep original design']);
   assert.ok((await (await fetch(previewImage().src)).text()).includes(artwork));
-  assert.match($('selected-previews-note').textContent, /Original design.*installation setting stays unchanged/);
-  assert.equal(graphicsInput.checked, true); // Comparing does not change the installation choice.
-  assert.equal(invalidations, beforeCompare);
-  await assert.rejects(fetch(grayPreviewUrl)); // Replaced images release their previous URL.
-  $('preview-graphics-grayscale').checked = true;
-  $('preview-graphics-grayscale').onchange();
+  assert.equal(invalidations, beforeAll + 1);
+  await assert.rejects(fetch(grayPreviewUrl));
+  $('graphics-all-grayscale').onclick();
+  assert.equal(graphicsInput.checked, true);
   assert.equal(await (await fetch(previewImage().src)).text(), grayPreview);
-  // Opening again starts from the installation setting, even after comparing Original.
-  $('preview-graphics-original').checked = true;
-  $('preview-graphics-original').onchange();
+  $('graphics-all-original').onclick();
   $('close-selected-previews').onclick();
   assert.equal($('selected-previews-list').children.length, 0);
   await assert.rejects(fetch(grayPreviewUrl));
+  await $('build').onclick();
+  const allOriginalFiles = wizardOptions.getFiles();
+  assert.deepEqual(JSON.parse(new TextDecoder().decode(allOriginalFiles['build.json'])).settings, {graphics:'colorful'});
+  assert.equal(new TextDecoder().decode(allOriginalFiles['content/display/probe.svg']),
+    originalKit.screenTemplate.replace('</svg>', originalKit.machines[0].artwork + '</svg>'));
+  await $('preview-selected').onclick();
+  assert.ok((await (await fetch(previewImage().src)).text()).includes(artwork));
+  $('graphics-all-grayscale').onclick();
+  $('close-selected-previews').onclick();
   const mixed = await fixture();
   mixed.kit.machines.push({id:'stock', name:'Stock-screen machine'});
-  api.configure({...mixed, selected:['probe','other','stock']});
+  await api.configure({...mixed, selected:['probe','other','stock']});
   await $('preview-selected').onclick();
-  assert.equal($('preview-graphics-configured').checked, true);
+  assert.equal($('graphics-all-grayscale').disabled, false);
   const figures = $('selected-previews-list').children;
   assert.equal(figures.length, 3);
   assert.match(figures[1].children[1].children[0].textContent, /Preview unavailable.*Unsupported SVG paint/);
   assert.match(figures[2].children[1].children[0].textContent, /uses a stock screen/);
   assert.ok(figures[0].children[1].children[0].src); // Other failures leave valid previews intact.
   $('selected-previews').close();
-  api.configure({...mixed, selected:[]});
+  await api.configure({...mixed, selected:[]});
   assert.equal($('preview-selected').disabled, true);
   await $('preview-selected').onclick();
   assert.equal($('selected-previews').open, false);
-  api.configure(await fixture());
+  await api.configure(await fixture());
   $('choose-extensions').onclick();
   assert.equal(pages[2].hidden, false);
   assert.equal(pages[3].hidden, true);
@@ -508,12 +530,14 @@ test('Extensions graphics defaults to original designs without firmware extensio
   $('selected-previews').close();
   assert.equal(files(), null);
   await assert.rejects(fetch(beforeOverride));
-  assert.equal(graphicsInput.checked, true);
+  assert.equal(graphicsInput.checked, false); // The only custom screen now uses its original design.
   await $('build').onclick();
   assert.deepEqual(manifest().settings, {graphics:'grayscale', graphicsOverrides:{probe:'colorful'}});
+  assert.doesNotMatch($('download-summary').textContent, /Grayscale machine graphics/);
   assert.ok(paintValues(new TextDecoder().decode(files()['content/display/probe.svg'])).some(value => !isGray(value)));
   await $('preview-selected').onclick();
-  override().value = 'default'; override().onchange();
+  override().value = 'grayscale'; override().onchange();
+  assert.equal(graphicsInput.checked, true);
   $('selected-previews').close();
   await $('build').onclick();
   assert.deepEqual(manifest().settings, {graphics:'grayscale'});
@@ -522,7 +546,7 @@ test('Extensions graphics defaults to original designs without firmware extensio
   await $('preview-selected').onclick();
   const originalPreviewUrl = previewImage().src;
   assert.ok((await (await fetch(originalPreviewUrl)).text()).includes(artwork));
-  assert.match($('selected-previews-note').textContent, /As configured/);
+  assert.equal($('selected-previews-count').textContent, '1 machine selected');
   $('selected-previews').close(); // Native Escape also emits close and releases assets.
   await assert.rejects(fetch(originalPreviewUrl));
   await $('build').onclick();
@@ -562,6 +586,11 @@ test('Extensions graphics defaults to original designs without firmware extensio
   await $('preview-selected').onclick();
   override().value = 'grayscale'; override().onchange();
   $('selected-previews').close();
+  blockPatch = false;
+  await $('build').onclick();
+  assert.deepEqual(manifest().settings, {graphics:'colorful', graphicsOverrides:{probe:'grayscale'}});
+  assert.match($('download-summary').textContent, /Grayscale machine graphics/);
+  blockPatch = true;
   const pendingOverride = $('build').onclick();
   while (!finishPatch) await new Promise(resolve => setTimeout(resolve, 0));
   await $('preview-selected').onclick();
@@ -571,5 +600,6 @@ test('Extensions graphics defaults to original designs without firmware extensio
   assert.equal(files(), null);
   blockPatch = false;
   await $('build').onclick();
-  assert.deepEqual(manifest().settings, {graphics:'colorful', graphicsOverrides:{probe:'colorful'}});
+  assert.deepEqual(manifest().settings, {graphics:'colorful'});
+  assert.doesNotMatch($('download-summary').textContent, /Grayscale machine graphics/);
 });

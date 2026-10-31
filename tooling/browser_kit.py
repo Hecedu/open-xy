@@ -143,10 +143,12 @@ def write_builder(kit, output):
     script = read(ROOT / 'builder/core.mjs').decode('utf-8').replace(
         "import * as Graphics from '../sdk/browser/graphics.mjs';\n", '').replace('export ', '')
     app = read(ROOT / 'builder/app.mjs').decode('utf-8')
-    imports = ("import * as Core from './core.mjs';\nimport * as Wizard from './wizard.mjs';\n"
+    imports = ("import {createGraphicsConfiguration} from './graphics-configuration.mjs';\n"
+               "import {createSnapshotService} from './machine-snapshots.mjs';\n"
+               "import {createGraphicsDialog} from './graphics-dialog.mjs';\n"
+               "import * as Core from './core.mjs';\nimport * as Wizard from './wizard.mjs';\n"
                "import * as Retained from '../sdk/browser/display.mjs';\n"
                "import * as Visuals from './visuals.mjs';\n"
-               "import {Audition} from './audition.mjs';\n"
                "import {editedShown, shownControls} from '../sdk/browser/controls.mjs';\n"
                "import {supportsDeviceApis} from './browser.mjs';\n")
     require(app.startswith(imports), 'Unexpected browser imports')
@@ -187,7 +189,22 @@ def write_builder(kit, output):
         bundled += 'const ' + variable + '=' + json.dumps(read(ROOT / 'sdk/browser' / file).decode('utf-8')) + ';\n'
     bundled += audition[len(audition_imports):].replace('export ', '') + '\nreturn Audition;\n})();\n'
     bundled += read(ROOT / 'builder/browser.mjs').decode('utf-8').replace('export ', '') + '\n'
-    bundled += app[len(imports):]
+    modules = [
+        ('graphics-configuration.mjs', "import {graphicsForMachine} from './core.mjs';\n",
+         'const {graphicsForMachine} = Core;', 'createGraphicsConfiguration'),
+        ('machine-snapshots.mjs', "import {decode64, requireThat, sha256} from './core.mjs';\n"
+         "import * as Retained from '../sdk/browser/display.mjs';\n"
+         "import {shownControls} from '../sdk/browser/controls.mjs';\n",
+         'const {decode64, requireThat, sha256} = Core;', 'createSnapshotService'),
+        ('graphics-dialog.mjs', "import {selectArtwork} from '../sdk/browser/graphics.mjs';\n",
+         'const {selectArtwork} = Graphics;', 'createGraphicsDialog'),
+    ]
+    for file, module_imports, bindings, factory in modules:
+        source = read(ROOT / 'builder' / file).decode('utf-8')
+        require(source.startswith(module_imports), 'Unexpected browser imports: ' + file)
+        bundled += ('const ' + factory + ' = (() => {\n' + bindings + '\n' +
+                    source[len(module_imports):].replace('export ', '') + '\nreturn ' + factory + ';\n})();\n')
+    bundled += app[len(imports):].replace('export ', '') + '\nawait createBuilder({audition:Audition});\n'
     # Include attribution even when refreshing a kit exported before device setup existed.
     kit = dict(kit)
     kit['notices'] += '\n\nFerret device setup — Bag of Waffles\n\n' + read(

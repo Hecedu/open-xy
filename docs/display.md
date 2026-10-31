@@ -277,8 +277,9 @@ animation palette. Validation alone cannot judge clarity.
 On the installer's **Extensions** page, **Grayscale machine graphics** keeps
 an already-grayscale original byte for byte; otherwise it uses the validated
 developer variant unchanged, or automatic conversion when no variant is declared.
-Disabling the option preserves original artwork by default; per-machine choices
-in **Preview** can override that default.
+The checkbox reflects whether any selected custom screen is configured for
+grayscale. **Configure** can set individual screens to grayscale or original;
+checking or unchecking the option applies that choice to all selected custom screens.
 The automatic fallback builds one palette from every fill and stroke, including
 off-screen animation donors. It groups strongly chromatic colors into hue
 families and assigns separate gray ranges to those families, prioritizing hue

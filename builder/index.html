@@ -113,8 +113,8 @@
         <label class="graphics-extension-check"><input id="grayscale-graphics" type="checkbox" aria-label="Grayscale machine graphics" aria-describedby="graphics-note"></label>
         <span class="machine-icon" data-icon="settings"></span>
         <div class="graphics-extension-copy"><label for="grayscale-graphics" class="graphics-extension-name">Grayscale machine graphics</label>
-          <p id="graphics-note">Changes custom machine screens to grayscale. Stock screens and grayscale designs stay unchanged.</p>
-          <div class="graphics-extension-actions"><button id="preview-selected" type="button" class="secondary preview-selected" aria-haspopup="dialog" disabled>Preview</button><span id="graphics-overrides-count" aria-live="polite">All machines use the default.</span></div>
+          <p id="graphics-note">Changes all selected custom machine screens to grayscale. Stock screens and grayscale designs stay unchanged.</p>
+          <div class="graphics-extension-actions"><button id="preview-selected" type="button" class="secondary preview-selected" aria-haspopup="dialog" disabled>Configure</button><span id="graphics-overrides-count" aria-live="polite">All machines use the default.</span></div>
         </div>
       </div><div id="extensions" class="machine-list"></div><p id="extensions-empty" hidden>No other extensions are available in this collection.</p><div id="extension-capacity-host"></div></div>
       <aside class="inspector extension-inspector" aria-label="Extension details">
@@ -125,14 +125,14 @@
     <div class="actions"><button data-step="2" class="secondary">← Machines</button><button id="build" class="primary" disabled>Build firmware <span aria-hidden="true">→</span></button></div>
   </section>
   <dialog id="selected-previews" aria-labelledby="selected-previews-title" aria-describedby="selected-previews-note">
-    <div class="selected-previews-heading"><h2 id="selected-previews-title">Machine graphics</h2><button id="close-selected-previews" type="button" class="secondary" autofocus>Done</button></div>
-    <fieldset class="preview-graphics-toggle" aria-label="Preview graphics">
-      <label><input id="preview-graphics-configured" type="radio" name="preview-graphics" value="configured"><span>As configured</span></label>
-      <label><input id="preview-graphics-grayscale" type="radio" name="preview-graphics" value="grayscale"><span>Grayscale</span></label>
-      <label><input id="preview-graphics-original" type="radio" name="preview-graphics" value="colorful"><span>Original</span></label>
-    </fieldset>
-    <p id="selected-previews-note"></p>
+    <div class="selected-previews-heading"><div class="selected-previews-title-group"><h2 id="selected-previews-title">Machine graphics</h2><span id="selected-previews-count"></span></div><button id="close-selected-previews" type="button" class="secondary" autofocus>Done</button></div>
+    <div class="graphics-bulk-actions" role="group" aria-label="Apply graphics to all selected machines">
+      <button id="graphics-all-grayscale" type="button" class="secondary">Make all grayscale</button>
+      <button id="graphics-all-original" type="button" class="secondary">Restore all originals</button>
+    </div>
+    <p id="selected-previews-note">Change all machines together, or customize each below.</p>
     <div id="selected-previews-list" class="selected-previews-list"></div>
+    <p class="selected-previews-footnote">Your choices apply to the build. Previews are static and silent.</p>
     <details class="graphics-example-disclosure"><summary>Comparison examples</summary>
     <section class="graphics-examples" aria-labelledby="graphics-examples-title">
       <h2 id="graphics-examples-title">Compare the look</h2>
