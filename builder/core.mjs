@@ -764,8 +764,18 @@ function defaultPreset(machine) {
   };
 }
 
-export async function buildAssets(kit, selection, catalog, numbers, {graphics = 'colorful'} = {}) {
+export function graphicsForMachine(machine, {graphics = 'colorful', graphicsOverrides = {}} = {}) {
+  const mode = machine.artwork && Object.hasOwn(graphicsOverrides, machine.id) ? graphicsOverrides[machine.id] : graphics;
+  check(['colorful', 'grayscale'].includes(mode), 'Invalid machine graphics setting');
+  return machine.artwork ? mode : 'colorful';
+}
+
+export async function buildAssets(kit, selection, catalog, numbers, {graphics = 'colorful', graphicsOverrides = {}} = {}) {
   check(['colorful', 'grayscale'].includes(graphics), 'Invalid machine graphics setting');
+  check(graphicsOverrides && typeof graphicsOverrides === 'object' && !Array.isArray(graphicsOverrides), 'Invalid machine graphics overrides');
+  for (const [id, mode] of Object.entries(graphicsOverrides))
+    check(kit.machines.some(machine => machine.id === id && machine.artwork) && ['colorful', 'grayscale'].includes(mode),
+      'Invalid graphics override: ' + id);
   check(await sha256(catalog) === kit.profile.stock_catalog_sha256, 'The site’s machine data is damaged. Reload this page.');
   const machines = kit.machines.filter(m => selection.includes(m.id));
   // Each machine's entry ends its stock list; the offsets are bound to the
@@ -792,11 +802,11 @@ export async function buildAssets(kit, selection, catalog, numbers, {graphics = 
     for (const m of machines.filter(m => m.artwork)) {
       check(/^[a-z][a-z0-9_]*\.svg$/.test(m.asset), 'Invalid artwork filename');
       try {
-        const fragment = selectArtwork(m, graphics);
+        const fragment = selectArtwork(m, graphicsForMachine(m, {graphics, graphicsOverrides}));
         const artwork = baseSvg.replace('</svg>', fragment + '</svg>');
         files['content/display/' + m.asset] = utf8.encode(artwork);
       } catch (error) {
-        throw new Error('Could not prepare ' + m.id + ' graphics: ' + error.message + '. Choose colorful or use corrected machine artwork.');
+        throw new Error('Could not prepare ' + m.id + ' graphics: ' + error.message + '. Keep this machine’s original design or use corrected artwork.');
       }
     }
   }

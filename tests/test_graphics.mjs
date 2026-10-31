@@ -270,6 +270,41 @@ async function fixture() {
   return {kit, catalog};
 }
 
+test('per-machine overrides package mixed designs with authored grayscale and intact grayscale originals', async () => {
+  const {kit, catalog} = await fixture();
+  const first = kit.machines[0];
+  const gray = artworkForGraphics(first.artwork, 'grayscale');
+  first.grayscaleArtwork = gray.replaceAll('#f8f8f8', '#bbbbbb');
+  kit.machines[1] = {...first, id:'other', asset:'other.svg'};
+  kit.machines.push({...first, id:'neutral', asset:'neutral.svg', artwork:gray});
+  const selection = kit.machines.map(machine => machine.id);
+  const original = await buildAssets(kit, selection, catalog, {}, {graphics:'colorful'});
+  const mixed = await buildAssets(kit, selection, catalog, {}, {graphics:'grayscale', graphicsOverrides:{probe:'colorful'}});
+  const decode = bytes => new TextDecoder().decode(bytes);
+  assert.deepEqual(mixed['content/display/probe.svg'], original['content/display/probe.svg']);
+  assert.equal(decode(mixed['content/display/other.svg']), kit.screenTemplate.replace('</svg>', kit.machines[1].grayscaleArtwork + '</svg>'));
+  assert.deepEqual(mixed['content/display/neutral.svg'], original['content/display/neutral.svg']);
+  const enforced = await buildAssets(kit, selection, catalog, {}, {graphics:'colorful', graphicsOverrides:{probe:'grayscale'}});
+  assert.notDeepEqual(enforced['content/display/probe.svg'], original['content/display/probe.svg']);
+  assert.deepEqual(enforced['content/display/other.svg'], original['content/display/other.svg']);
+  delete first.grayscaleArtwork;
+  const fallback = await buildAssets(kit, ['probe'], catalog, {}, {graphics:'colorful', graphicsOverrides:{probe:'grayscale'}});
+  assert.equal(decode(fallback['content/display/probe.svg']), kit.screenTemplate.replace('</svg>', gray + '</svg>'));
+  const unselected = await buildAssets(kit, ['probe'], catalog, {}, {graphics:'colorful', graphicsOverrides:{other:'grayscale'}});
+  assert.deepEqual(unselected['content/display/probe.svg'], original['content/display/probe.svg']);
+  assert.equal(Object.hasOwn(unselected, 'content/display/other.svg'), false);
+  for (const path of Object.keys(original).filter(path => !path.startsWith('content/display/')))
+    assert.deepEqual(mixed[path], original[path]);
+});
+
+test('invalid per-machine policies fail before packaging and stock screens cannot be overridden', async () => {
+  const {kit, catalog} = await fixture();
+  kit.machines.push({id:'stock', kind:'effect'});
+  for (const graphicsOverrides of [null, [], true, {unknown:'grayscale'}, {probe:'grey'}, {probe:'default'}, {stock:'grayscale'}])
+    await assert.rejects(buildAssets(kit, ['probe'], catalog, {}, {graphicsOverrides}), /graphics override/i);
+  assert.equal(Core.graphicsForMachine(kit.machines[0], {graphics:'grayscale', graphicsOverrides:Object.create({probe:'colorful'})}), 'grayscale');
+});
+
 test('packaging converts only selected screens and preserves the template, menu, presets and source', async () => {
   const {kit, catalog} = await fixture(), original = structuredClone(kit);
   const colorful = await buildAssets(kit, ['probe'], catalog, {});
@@ -319,7 +354,7 @@ test('already-grayscale machine screens retain their exact packaged bytes and ha
   assert.match(new TextDecoder().decode(animated[path]), /fill="#7f7f7f" stroke="#808080"/);
 });
 
-test('Settings defaults to grayscale, rebuilds downloads and rejects results made stale by a setting change', async t => {
+test('Extensions graphics defaults to original designs without firmware extensions, rebuilds downloads and rejects results made stale by a setting change', async t => {
   class Element {
     hidden = false; disabled = false; textContent = ''; dataset = {}; children = [];
     listeners = {};
@@ -333,21 +368,28 @@ test('Settings defaults to grayscale, rebuilds downloads and rejects results mad
     focus() {}
   }
   const html = readFileSync(new URL('../builder/index.html', import.meta.url), 'utf8');
-  assert.match(html, /<input\b[^>]*value="grayscale"[^>]*\bchecked\b/);
+  const nav = html.match(/<nav class="steps"[\s\S]*?<\/nav>/)[0];
+  assert.deepEqual([...nav.matchAll(/data-step="(\d)"/g)].map(m => Number(m[1])), [1, 2, 3, 4]);
+  assert.ok(!html.includes('id="settings-title"'));
+  const extensionsPage = html.slice(html.indexOf('<section data-page="3"'), html.indexOf('<section data-page="4"'));
+  assert.ok(extensionsPage.includes('id="grayscale-graphics"'));
+  assert.ok(extensionsPage.includes('id="preview-selected"'));
+  assert.doesNotMatch(html, /<input\b[^>]*id="grayscale-graphics"[^>]*\bchecked\b/);
   assert.doesNotMatch(html, /<input\b[^>]*value="colorful"[^>]*\bchecked\b/);
   const elements = new Map([...html.matchAll(/\bid="([^"]+)"/g)].map(([, id]) => [id, new Element()]));
   const $ = id => { assert.ok(elements.has(id), id); return elements.get(id); };
   $('preview-graphics-grayscale').value = 'grayscale';
   $('preview-graphics-original').value = 'colorful';
-  const radios = ['grayscale', 'colorful'].map(value => Object.assign(new Element(), {value}));
-  const steps = [1, 2, 3, 4, 5].map(step => Object.assign(new Element(), {dataset:{step:String(step)}}));
+  $('preview-graphics-configured').value = 'configured';
+  const graphicsInput = $('grayscale-graphics');
+  const steps = [1, 2, 3, 4].map(step => Object.assign(new Element(), {dataset:{step:String(step)}}));
   const pages = steps.map(el => Object.assign(new Element(), {dataset:{page:el.dataset.step}}));
-  const titles = ['input-title', 'machines-title', 'extensions-title', 'settings-title', 'download-title'];
+  const titles = ['input-title', 'machines-title', 'extensions-title', 'download-title'];
   const location = {hash:'#preview/settings', pathname:'/', search:''};
   const globals = {
     document:{getElementById:$, addEventListener() {}, createElement:() => new Element(),
       querySelectorAll:selector => ({'[data-page]':pages, '.steps button':steps, '[data-step]':steps,
-        'input[name="graphics"]':radios}[selector] ?? []),
+        'input[name="graphics"]':[]}[selector] ?? []),
       querySelector:selector => {
         const step = /data-step="(\d)"/.exec(selector);
         if (step) return steps[Number(step[1]) - 1];
@@ -380,19 +422,27 @@ test('Settings defaults to grayscale, rebuilds downloads and rejects results mad
   const api = await new AsyncFunction('Core', 'Wizard', 'Visuals', 'supportsDeviceApis', source + `
     return {configure(value) {
       kit = value.kit; catalog = value.catalog; stock = new Uint8Array(1);
-      selected = value.selected ?? ['probe']; linked = {}; builderPreview = false; acknowledged = true; ready();
+      selected = value.selected ?? ['probe']; linked = {}; builderPreview = false; acknowledged = true; updateOverrideCount(); ready();
     }};`)(fakeCore, {createWizard:options => { wizardOptions = options; return wizard; }},
     {reveal() {}, bundle:() => new Element(),
       graphicsExamples:() => ({elements:[], setGraphics:mode => previewModes.push(mode)})}, () => true);
-  assert.equal(radios[0].checked, true);
-  assert.equal(radios[1].checked, false);
+  assert.equal(graphicsInput.checked, false);
   assert.equal($('build').disabled, true); // Preview cannot install.
   const beforeClick = invalidations;
-  radios[0].onclick();
-  assert.equal(previewModes.at(-1), 'grayscale');
+  graphicsInput.onchange();
+  assert.equal(previewModes.at(-1), 'colorful');
   assert.equal(invalidations, beforeClick); // Restoring a preview does not rebuild.
   api.configure(await fixture());
   assert.equal($('preview-selected').disabled, false);
+  assert.equal($('extension-count').textContent, 'None selected');
+  assert.deepEqual($('build-selection').children.slice(-2).map(e => e.textContent), ['Machine graphics', 'Original designs']);
+  await $('build').onclick();
+  const defaultFiles = wizardOptions.getFiles();
+  assert.deepEqual(JSON.parse(new TextDecoder().decode(defaultFiles['build.json'])).settings, {graphics:'colorful'});
+  const originalKit = (await fixture()).kit;
+  assert.equal(new TextDecoder().decode(defaultFiles['content/display/probe.svg']),
+    originalKit.screenTemplate.replace('</svg>', originalKit.machines[0].artwork + '</svg>'));
+  graphicsInput.checked = true; graphicsInput.onchange();
   await $('preview-selected').onclick();
   assert.equal($('selected-previews').open, true);
   assert.equal($('selected-previews-list').children.length, 1); // Excludes unselected 'other'.
@@ -400,8 +450,8 @@ test('Settings defaults to grayscale, rebuilds downloads and rejects results mad
   const grayPreviewUrl = previewImage().src;
   const grayPreview = await (await fetch(grayPreviewUrl)).text();
   assert.equal(grayPreview, (await fixture()).kit.screenTemplate.replace('</svg>', Core.selectArtwork((await fixture()).kit.machines[0], 'grayscale') + '</svg>'));
-  assert.match($('selected-previews-note').textContent, /Grayscale/);
-  assert.equal($('preview-graphics-grayscale').checked, true);
+  assert.match($('selected-previews-note').textContent, /As configured/);
+  assert.equal($('preview-graphics-configured').checked, true);
   const beforeCompare = invalidations;
   $('preview-graphics-original').checked = true;
   $('preview-graphics-original').onchange();
@@ -410,7 +460,7 @@ test('Settings defaults to grayscale, rebuilds downloads and rejects results mad
   assert.equal($('preview-graphics-original').checked, true);
   assert.ok((await (await fetch(previewImage().src)).text()).includes(artwork));
   assert.match($('selected-previews-note').textContent, /Original design.*installation setting stays unchanged/);
-  assert.equal(radios[0].checked, true); // Comparing does not change the installation choice.
+  assert.equal(graphicsInput.checked, true); // Comparing does not change the installation choice.
   assert.equal(invalidations, beforeCompare);
   await assert.rejects(fetch(grayPreviewUrl)); // Replaced images release their previous URL.
   $('preview-graphics-grayscale').checked = true;
@@ -426,7 +476,7 @@ test('Settings defaults to grayscale, rebuilds downloads and rejects results mad
   mixed.kit.machines.push({id:'stock', name:'Stock-screen machine'});
   api.configure({...mixed, selected:['probe','other','stock']});
   await $('preview-selected').onclick();
-  assert.equal($('preview-graphics-grayscale').checked, true);
+  assert.equal($('preview-graphics-configured').checked, true);
   const figures = $('selected-previews-list').children;
   assert.equal(figures.length, 3);
   assert.match(figures[1].children[1].children[0].textContent, /Preview unavailable.*Unsupported SVG paint/);
@@ -440,28 +490,43 @@ test('Settings defaults to grayscale, rebuilds downloads and rejects results mad
   api.configure(await fixture());
   $('choose-extensions').onclick();
   assert.equal(pages[2].hidden, false);
-  $('settings-next').onclick();
-  assert.equal(pages[3].hidden, false);
-  assert.equal(pages[4].hidden, true);
+  assert.equal(pages[3].hidden, true);
   const files = () => wizardOptions.getFiles();
   const manifest = () => JSON.parse(new TextDecoder().decode(files()['build.json']));
   const setGraphics = value => {
-    for (const input of radios) input.checked = input.value === value;
-    radios.find(input => input.checked).onchange();
+    graphicsInput.checked = value === 'grayscale';
+    graphicsInput.onchange();
   };
   await $('build').onclick();
   assert.deepEqual(manifest().settings, {graphics:'grayscale'});
+  assert.deepEqual(JSON.parse(new TextDecoder().decode(files()['layout.json'])).extensions, []);
   assert.ok(paintValues(new TextDecoder().decode(files()['content/display/probe.svg'])).every(isGray));
+  const beforeOverride = $('download').href;
+  const override = () => $('selected-previews-list').children[0].children[3].children[1];
+  await $('preview-selected').onclick();
+  override().value = 'colorful'; override().onchange();
+  $('selected-previews').close();
+  assert.equal(files(), null);
+  await assert.rejects(fetch(beforeOverride));
+  assert.equal(graphicsInput.checked, true);
+  await $('build').onclick();
+  assert.deepEqual(manifest().settings, {graphics:'grayscale', graphicsOverrides:{probe:'colorful'}});
+  assert.ok(paintValues(new TextDecoder().decode(files()['content/display/probe.svg'])).some(value => !isGray(value)));
+  await $('preview-selected').onclick();
+  override().value = 'default'; override().onchange();
+  $('selected-previews').close();
+  await $('build').onclick();
+  assert.deepEqual(manifest().settings, {graphics:'grayscale'});
   setGraphics('colorful');
   assert.equal(previewModes.at(-1), 'colorful');
   await $('preview-selected').onclick();
   const originalPreviewUrl = previewImage().src;
   assert.ok((await (await fetch(originalPreviewUrl)).text()).includes(artwork));
-  assert.match($('selected-previews-note').textContent, /Original design/);
+  assert.match($('selected-previews-note').textContent, /As configured/);
   $('selected-previews').close(); // Native Escape also emits close and releases assets.
   await assert.rejects(fetch(originalPreviewUrl));
   await $('build').onclick();
-  assert.equal(pages[4].hidden, false);
+  assert.equal(pages[3].hidden, false);
   assert.deepEqual(manifest().settings, {graphics:'colorful'});
   const original = files()['content/display/probe.svg'].slice();
   assert.ok(wizardOptions.hasDownload());
@@ -473,7 +538,7 @@ test('Settings defaults to grayscale, rebuilds downloads and rejects results mad
   assert.equal(files(), null);
   assert.equal($('download').href, undefined);
   assert.equal($('flow-download').href, undefined);
-  assert.equal(steps[4].disabled, true);
+  assert.equal(steps[3].disabled, true);
   await assert.rejects(fetch(firstUrl)); // The previous download URL was revoked.
   await $('build').onclick();
   assert.deepEqual(manifest().settings, {graphics:'grayscale'});
@@ -492,5 +557,19 @@ test('Settings defaults to grayscale, rebuilds downloads and rejects results mad
   setGraphics('colorful'); finishPatch(Uint8Array.of(1, 2, 3)); await pending;
   assert.equal(files(), null);
   assert.equal(wizardOptions.hasDownload(), false);
-  assert.equal(steps[4].disabled, true);
+  assert.equal(steps[3].disabled, true);
+  finishPatch = undefined;
+  await $('preview-selected').onclick();
+  override().value = 'grayscale'; override().onchange();
+  $('selected-previews').close();
+  const pendingOverride = $('build').onclick();
+  while (!finishPatch) await new Promise(resolve => setTimeout(resolve, 0));
+  await $('preview-selected').onclick();
+  override().value = 'colorful'; override().onchange();
+  $('selected-previews').close();
+  finishPatch(Uint8Array.of(1, 2, 3)); await pendingOverride;
+  assert.equal(files(), null);
+  blockPatch = false;
+  await $('build').onclick();
+  assert.deepEqual(manifest().settings, {graphics:'colorful', graphicsOverrides:{probe:'colorful'}});
 });

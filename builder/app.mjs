@@ -19,7 +19,8 @@ $('risk-acknowledgement').disabled = !browserAllowed;
 $('risk-continue').disabled = true;
 const colors = ['var(--machine-1)', 'var(--machine-2)', 'var(--machine-3)', 'var(--machine-4)'];
 const kib = n => (n / 1024).toFixed(1) + ' KiB';
-let graphics = 'grayscale';
+let graphics = 'colorful';
+const graphicsOverrides = {};
 let kit, stock, catalog, selected = [], selectedExtensions = [], inspected, inspectedExtension, linked, downloadUrl, built, layout, revision = 0;
 // The machine numbers of this person's firmware (core.mjs assignNumbers): from their
 // last build here, or a layout.json they load. Kept in this browser as a convenience;
@@ -44,12 +45,12 @@ function invalidate() {
   if (downloadUrl) { URL.revokeObjectURL(downloadUrl); downloadUrl = null; }
   $('download').removeAttribute('href');
   $('flow-download').removeAttribute('href');
-  document.querySelector('[data-step="5"]').disabled = true;
+  document.querySelector('[data-step="4"]').disabled = true;
 }
 function navigate(step) {
   stopAudio();
   if ($('selected-previews').open) $('selected-previews').close();
-  if (builderPreview && ![2, 3, 4].includes(step)) {
+  if (builderPreview && ![2, 3].includes(step)) {
     builderPreview = false;
     history.replaceState(null, '', location.pathname + location.search);
     ready();
@@ -69,14 +70,11 @@ function ready() {
   document.querySelector('.steps [data-step="2"]').disabled = !(kit && (stock || builderPreview));
   $('choose-extensions').disabled = !(kit && selected.length && (stock || builderPreview));
   document.querySelector('.steps [data-step="3"]').disabled = $('choose-extensions').disabled;
-  const canConfigure = !!(kit && linked && (stock || builderPreview));
-  document.querySelector('.steps [data-step="4"]').disabled = !canConfigure;
-  $('settings-next').disabled = !canConfigure;
   $('build').disabled = builderPreview || !(stock && linked);
   $('preview-selected').disabled = !(kit && selected.length);
 }
 
-const wizard = Wizard.createWizard({installPage:5, getKit: () => kit, getSelected: () => selected, hasDownload: () => !!downloadUrl, getFiles: () => built,
+const wizard = Wizard.createWizard({ getKit: () => kit, getSelected: () => selected, hasDownload: () => !!downloadUrl, getFiles: () => built,
   onFirmware: (file, isCurrent) => acceptFirmware(file, isCurrent),
   onPreviewExit() {
     history.replaceState(null, '', location.pathname + location.search);
@@ -106,9 +104,9 @@ function openPreviewLink() {
     if (builderPreview) {
       loadCollection?.();
       $('phase-nav').hidden = false;
-      navigate(match[1] === 'settings' ? 4 : match[1] === 'extensions' ? 3 : 2);
+      navigate(match[1] === 'machines' ? 2 : 3);
       if (kit) {
-        if (match[1] === 'extensions') inspectExtension(kit.extensions?.find(e => e.id === match[2])?.id ?? kit.extensions?.[0]?.id);
+        if (match[1] !== 'machines') inspectExtension(kit.extensions?.find(e => e.id === match[2])?.id ?? kit.extensions?.[0]?.id);
         else inspect(kit.machines.find(m => m.id === match[2])?.id ?? kit.machines[0].id);
         recalculate();
       }
@@ -153,6 +151,67 @@ $('graphics-examples').replaceChildren(...graphicsExamples.elements);
 $('preview-controls-panel').ontoggle = () => {
   if (!$('preview-controls-panel').open) stopAudio();
 };
+function updateOverrideCount() {
+  const count = kit?.machines.filter(machine => selected.includes(machine.id) && machine.artwork && Object.hasOwn(graphicsOverrides, machine.id)).length ?? 0;
+  $('graphics-overrides-count').textContent = count ? `${count} machine${count === 1 ? '' : 's'} customized` : 'All machines use the default.';
+  $('graphics-extension').className = 'machine graphics-extension' + (graphics === 'grayscale' ? ' selected' : '');
+  if (!kit) return;
+  const enabled = selectedExtensions.length + Number(graphics === 'grayscale');
+  $('extension-count').textContent = enabled ? enabled + ' selected' : 'None selected';
+  facts($('build-selection'), {
+    Machines: kit.machines.filter(m => selected.includes(m.id)).map(m => m.name).join(', ') || 'None',
+    Extensions: (kit.extensions ?? []).filter(e => selectedExtensions.includes(e.id)).map(e => e.name).join(', ') || 'None',
+    'Machine graphics': (graphics === 'grayscale' ? 'Grayscale' : 'Original designs') + (count ? ' · ' + count + ' customized' : ''),
+  });
+}
+function createGraphicsOverride(machine, onChange) {
+  const label = node('label', undefined, 'machine-graphics-control');
+  label.append(node('span', 'Install graphics'));
+  const select = node('select'); select.setAttribute('aria-label', machine.name + ' install graphics');
+  for (const [value, text] of [['default', `Use default (${graphics === 'grayscale' ? 'Grayscale' : 'Original'})`],
+    ['grayscale', 'Enforce grayscale'], ['colorful', 'Keep original design']]) {
+    const option = node('option', text); option.value = value; select.append(option);
+  }
+  select.value = Object.hasOwn(graphicsOverrides, machine.id) ? graphicsOverrides[machine.id] : 'default';
+  select.onchange = () => {
+    if (!['default', 'grayscale', 'colorful'].includes(select.value)) return;
+    const before = graphicsOverrides[machine.id];
+    if (select.value === 'default') delete graphicsOverrides[machine.id]; else graphicsOverrides[machine.id] = select.value;
+    if (before === graphicsOverrides[machine.id]) return;
+    updateOverrideCount(); invalidate(); ready(); onChange();
+    if (inspected === machine.id) inspect(inspected);
+  };
+  label.append(select); return label;
+}
+// Cache only frozen frames/SVGs: the temporary WASM instance is released after
+// one default-state render, and comparison changes never tick machine code.
+const machineSnapshots = new WeakMap();
+function machineSnapshot(machine, artwork) {
+  let cached = machineSnapshots.get(machine);
+  if (!cached) {
+    const frame = (async () => {
+      const wasm = Core.decode64(machine.preview.wasm);
+      Core.requireThat(await Core.sha256(wasm) === machine.preview.sha256, 'Preview module hash mismatch');
+      const display = new Retained.PreviewDisplay(await WebAssembly.compile(wasm));
+      const parameters = Object.assign(Array(8).fill(0), machine.preview.defaults);
+      const frame = display.tick(shownControls(parameters, [0, 1, 2, 3]), 0, 0, 0, true,
+        {held_notes:0, note_off_serial:0}).slice();
+      return {frame, parameters};
+    })();
+    cached = {frame, artwork:new Map()}; machineSnapshots.set(machine, cached);
+  }
+  if (!cached.artwork.has(artwork)) {
+    cached.artwork.set(artwork, cached.frame.then(({frame, parameters}) => {
+      const renderer = new Retained.SvgDisplay(artwork, machine.preview.graphics);
+      renderer.apply(frame);
+      const header = Retained.headerSvg(machine.controls.slice(0, 4).map(title => title.toLowerCase()),
+        [0, 1, 2, 3].map(slot => renderer.header[slot] || String(Math.round(parameters[slot] / 0x7fffffff * 100))));
+      return '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="220" viewBox="0 0 480 220">' +
+        '<rect width="480" height="220" fill="#000000"/>' + header + renderer.svg() + '</svg>';
+    }));
+  }
+  return cached.artwork.get(artwork);
+}
 let selectedPreviewRevision = 0, disposeSelectedPreviews = () => {};
 function clearSelectedPreviews() {
   ++selectedPreviewRevision;
@@ -163,17 +222,18 @@ function clearSelectedPreviews() {
 $('selected-previews').addEventListener('close', clearSelectedPreviews);
 window.addEventListener('pagehide', clearSelectedPreviews);
 $('close-selected-previews').onclick = () => $('selected-previews').close();
-$('preview-selected').onclick = async () => {
+$('preview-selected').onclick = () => {
   if (!kit || !selected.length) return;
   stopAudio(); clearSelectedPreviews();
   const dialog = $('selected-previews'), ticket = selectedPreviewRevision;
-  let mode = graphics;
+  let mode = 'configured';
   const machines = kit.machines.filter(machine => selected.includes(machine.id));
-  const frames = [], updates = [], urls = new Set(), reduced = matchMedia('(prefers-reduced-motion: reduce)');
-  const modeInputs = [$('preview-graphics-grayscale'), $('preview-graphics-original')];
+  const updates = [], urls = new Set();
+  const modeInputs = [$('preview-graphics-configured'), $('preview-graphics-grayscale'), $('preview-graphics-original')];
   const updateMode = () => {
     modeInputs.forEach(input => { input.checked = input.value === mode; });
-    $('selected-previews-note').textContent = `${machines.length} selected · ${mode === 'grayscale' ? 'Grayscale' : 'Original design'}. Preview only; your installation setting stays unchanged. Click an animated screen to trigger it. No sound plays.`;
+    const label = mode === 'configured' ? 'As configured' : mode === 'grayscale' ? 'Grayscale' : 'Original design';
+    $('selected-previews-note').textContent = `${machines.length} selected · ${label}. ${mode === 'configured' ? 'Choose each machine’s install design below.' : 'Comparison only; your installation setting stays unchanged.'} Install graphics changes apply immediately. Default UI snapshots; no animation or audio.`;
     updates.forEach(update => update());
   };
   modeInputs.forEach(input => {
@@ -183,98 +243,56 @@ $('preview-selected').onclick = async () => {
     };
   });
   updateMode();
-  let handle, previous = 0;
   disposeSelectedPreviews = () => {
-    cancelAnimationFrame(handle); urls.forEach(url => URL.revokeObjectURL(url));
+    urls.forEach(url => URL.revokeObjectURL(url));
     modeInputs.forEach(input => { input.onchange = null; });
   };
   dialog.showModal();
-  function animate(time) {
-    if (ticket !== selectedPreviewRevision) return;
-    if (time - previous >= 32) {
-      const elapsed = previous ? Math.min(100, Math.round((time - previous) * 1024 / 1000)) : 0;
-      if (!document.hidden && !reduced.matches) frames.forEach(frame => frame(elapsed));
-      previous = time;
-    }
-    handle = requestAnimationFrame(animate);
-  }
   for (const m of machines) {
     const figure = node('figure', undefined, 'selected-machine-preview');
     const screen = node('div', undefined, 'selected-machine-screen');
-    const caption = node('figcaption', m.artwork ? 'Loading preview…' : 'Stock screen · kept unchanged');
+    const caption = node('figcaption', m.artwork ? '' : 'Stock screen · kept unchanged');
     figure.append(node('h3', m.name), screen, caption);
     $('selected-previews-list').append(figure);
     if (!m.artwork) {
       screen.append(node('p', 'This machine uses a stock screen. A browser preview is not available.'));
       continue;
     }
-    let renderArtwork, staticUrl;
+    figure.append(createGraphicsOverride(m, () => { mode = 'configured'; updateMode(); }));
+    let staticUrl, currentSvg, request = 0;
     const update = () => {
-      try {
-        const artwork = Core.selectArtwork(m, mode);
-        caption.textContent = mode === 'colorful' ? 'Original design' : artwork === m.artwork
-          ? 'Grayscale by design · kept intact' : m.grayscaleArtwork !== undefined
-            ? 'Grayscale design provided by the developer.' : 'Automatic grayscale conversion';
-        renderArtwork?.(artwork);
-      } catch (error) {
+      const current = ++request;
+      const active = () => ticket === selectedPreviewRevision && current === request;
+      const unavailable = error => {
+        if (!active()) return;
+        currentSvg = undefined;
         screen.replaceChildren(node('p', 'Preview unavailable: ' + error.message));
         caption.textContent = 'Check the machine artwork before installing.';
-      }
-    };
-    updates.push(update);
-    if (!m.preview) {
-      renderArtwork = artwork => {
+      };
+      const show = svg => {
+        if (!active() || currentSvg === svg) return;
+        currentSvg = svg;
         if (staticUrl) { URL.revokeObjectURL(staticUrl); urls.delete(staticUrl); }
-        staticUrl = URL.createObjectURL(new Blob([kit.screenTemplate.replace('</svg>', artwork + '</svg>')], {type:'image/svg+xml'}));
-        urls.add(staticUrl);
+        staticUrl = URL.createObjectURL(new Blob([svg], {type:'image/svg+xml'})); urls.add(staticUrl);
         const image = node('img'); image.src = staticUrl; image.alt = m.name + ' display preview'; screen.replaceChildren(image);
       };
-      update(); continue;
-    }
-    {
-      screen.append(node('p', 'Loading preview…'));
-      // Compile independently: one unavailable preview must not hide the other machines.
-      (async () => {
-        try {
-          const wasm = Core.decode64(m.preview.wasm);
-          Core.requireThat(await Core.sha256(wasm) === m.preview.sha256, 'Preview module hash mismatch');
-          const compiled = await WebAssembly.compile(wasm);
-          if (ticket !== selectedPreviewRevision) return;
-          const display = new Retained.PreviewDisplay(compiled);
-          let renderer;
-          const ns = 'http://www.w3.org/2000/svg', canvas = document.createElementNS(ns, 'svg');
-          const header = document.createElementNS(ns, 'g');
-          canvas.setAttribute('viewBox', '0 0 480 220'); canvas.setAttribute('role', 'button');
-          canvas.setAttribute('tabindex', '0'); canvas.setAttribute('aria-label', 'Trigger ' + m.name + ' display preview');
-          const parameters = Object.assign(Array(8).fill(0), m.preview.defaults), shown = [0, 1, 2, 3];
-          let serial = 1;
-          const frame = elapsed => {
-            if (!renderer) return;
-            try {
-              renderer.apply(display.tick(shownControls(parameters, shown), elapsed, serial, 0, reduced.matches));
-              header.innerHTML = Retained.headerSvg(shown.map(slot => m.controls[slot].toLowerCase()),
-                shown.map(slot => renderer.header[slot] || String(Math.round(parameters[slot] / 0x7fffffff * 100))));
-            } catch (error) {
-              const index = frames.indexOf(frame); if (index !== -1) frames.splice(index, 1);
-              canvas.removeAttribute('tabindex'); canvas.removeAttribute('role');
-              caption.textContent = 'Animation unavailable: ' + error.message;
-            }
-          };
-          // Swap the SVG while retaining the display instance, parameters and animation state.
-          renderArtwork = artwork => {
-            renderer = new Retained.SvgDisplay(artwork, m.preview.graphics);
-            canvas.replaceChildren(header, renderer.root); screen.replaceChildren(canvas); frame(0);
-          };
-          frames.push(frame); update();
-          if (frames.length === 1 && !reduced.matches) handle = requestAnimationFrame(animate);
-          const trigger = () => { serial = serial + 1 >>> 0; frame(0); };
-          canvas.onclick = trigger;
-          canvas.onkeydown = event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); trigger(); } };
-        } catch (error) {
-          if (ticket === selectedPreviewRevision) screen.replaceChildren(node('p', 'Preview unavailable: ' + error.message));
+      try {
+        const effective = mode === 'configured' ? Core.graphicsForMachine(m, {graphics, graphicsOverrides}) : mode;
+        const artwork = Core.selectArtwork(m, effective);
+        caption.textContent = effective === 'colorful' ? 'Original design' : artwork === m.artwork
+          ? 'Grayscale by design · kept intact' : m.grayscaleArtwork !== undefined
+            ? 'Grayscale design provided by the developer.' : 'Automatic grayscale conversion';
+        if (m.preview) {
+          if (!staticUrl) screen.replaceChildren(node('p', 'Rendering default UI…'));
+          machineSnapshot(m, artwork).then(show).catch(unavailable);
+        } else {
+          caption.textContent += ' · Static artwork; rendered snapshot unavailable';
+          show(kit.screenTemplate.replace('</svg>', artwork + '</svg>'));
         }
-      })();
-    }
+      } catch (error) { unavailable(error); }
+    };
+    updates.push(update);
+    update();
   }
 };
 let ticket = 0;
@@ -387,7 +405,7 @@ async function inspect(id) {
       const compiled = await WebAssembly.compile(wasm);
       if (ticket !== previewRevision) return;
       const display = new Retained.PreviewDisplay(compiled);
-      const renderer = new Retained.SvgDisplay(Core.selectArtwork(m, graphics), m.preview.graphics);
+      const renderer = new Retained.SvgDisplay(Core.selectArtwork(m, Core.graphicsForMachine(m, {graphics, graphicsOverrides})), m.preview.graphics);
       const ns = 'http://www.w3.org/2000/svg', canvas = document.createElementNS(ns, 'svg');
       canvas.setAttribute('viewBox', '0 0 480 220'); canvas.setAttribute('aria-label', m.name + ' display preview');
       // The device page: the stock four-control header under the machine's drawing,
@@ -571,12 +589,8 @@ function inspectExtension(id) {
   document.querySelectorAll('#extensions button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.id === id)));
 }
 function recalculate() {
+  updateOverrideCount();
   linked = null; $('selection-count').textContent = selected.length + ' selected';
-  $('extension-count').textContent = selectedExtensions.length ? selectedExtensions.length + ' selected' : 'None selected';
-  facts($('build-selection'), {
-    Machines: kit.machines.filter(m => selected.includes(m.id)).map(m => m.name).join(', ') || 'None',
-    Extensions: (kit.extensions ?? []).filter(e => selectedExtensions.includes(e.id)).map(e => e.name).join(', ') || 'None',
-  });
   $('extension-memory').textContent = '';
   $('memory-map').replaceChildren(); $('memory-legend').replaceChildren();
   try {
@@ -608,6 +622,9 @@ async function build() {
   try {
     const selection = [...selected], settings = {graphics}, extensions = Core.extensionSelection(kit, selectedExtensions);
     const result = Core.linkKit(kit, selection, numbers, extensions);
+    const overrides = Object.fromEntries(kit.machines.filter(machine => selection.includes(machine.id) && machine.artwork && Object.hasOwn(graphicsOverrides, machine.id))
+      .map(machine => [machine.id, graphicsOverrides[machine.id]]));
+    if (Object.keys(overrides).length) settings.graphicsOverrides = overrides;
     const files = await Core.buildAssets(kit, selection, catalog, result.numbers, settings);
     files['os.ldr'] = await Core.patchFirmware(kit, result, stock, {profiling: false});
     const hashes = {};
@@ -622,29 +639,27 @@ async function build() {
     if (ticket !== revision) return;
     layout = nextLayout; built = files; rememberNumbers(result.numbers); downloadUrl = URL.createObjectURL(new Blob([zip], {type: 'application/zip'}));
     $('download').href = $('flow-download').href = downloadUrl;
-    $('download-summary').textContent = selectionNames().join(' + ') + (extensions.length ? '' : ' · No extensions');
-    $('download-graphics').textContent = settings.graphics === 'grayscale' ? 'Machine graphics: grayscale' : 'Machine graphics: original colors';
+    $('download-summary').textContent = selectionNames().concat(graphics === 'grayscale' ? ['Grayscale machine graphics'] : []).join(' + ');
+    const modes = new Set(kit.machines.filter(machine => selection.includes(machine.id) && machine.artwork).map(machine => Core.graphicsForMachine(machine, settings)));
+    $('download-graphics').textContent = modes.size > 1 ? 'Machine graphics: per-machine settings' : modes.has('grayscale')
+      ? 'Machine graphics: grayscale' : modes.size ? 'Machine graphics: original designs' : 'Machine graphics: stock screens unchanged';
     $('bundle-art').replaceChildren(Visuals.bundle(Object.keys(files)));
     $('output-hash').textContent = 'OS (os.ldr) SHA-256: ' + hashes['os.ldr'];
-    document.querySelector('.steps [data-step="5"]').disabled = false;
-    status(); navigate(5);
+    document.querySelector('.steps [data-step="4"]').disabled = false;
+    status(); navigate(4);
   } catch (error) { if (ticket === revision) fail(error); } finally { ready(); }
 }
 document.querySelectorAll('[data-step]').forEach(b => b.onclick = () => navigate(Number(b.dataset.step)));
 $('choose').onclick = () => { navigate(2); recalculate(); };
-$('settings-next').onclick = () => navigate(4);
-for (const input of document.querySelectorAll('input[name="graphics"]')) {
-  input.checked = input.value === graphics;
-  input.onchange = () => {
-    if (!input.checked) return;
-    graphicsExamples.setGraphics(input.value);
-    if (graphics === input.value) return;
-    graphics = input.value; invalidate(); ready();
-    if (inspected) inspect(inspected);
-  };
-  // Re-selecting the active option also restores a manually adjusted comparison.
-  input.onclick = input.onchange;
-}
+const graphicsInput = $('grayscale-graphics');
+graphicsInput.checked = graphics === 'grayscale';
+graphicsInput.onchange = () => {
+  const next = graphicsInput.checked ? 'grayscale' : 'colorful';
+  graphicsExamples.setGraphics(next);
+  if (graphics === next) return;
+  graphics = next; updateOverrideCount(); invalidate(); ready();
+  if (inspected) inspect(inspected);
+};
 $('choose-extensions').onclick = () => { navigate(3); recalculate(); };
 $('build').onclick = build;
 $('firmware').onchange = e => acceptFirmware(e.target.files[0]);

@@ -46,17 +46,32 @@ leaves the browser.
    [personal kit](#export-a-kit)'s own machines are marked **Yours**.
 4. Choose optional extensions using the same checkbox rows as machines. Select
    a row to read what it does and how to use it in the details panel.
-   Extensions start off; continuing with none is valid. The summary lists your
+   Firmware extensions start off; continuing with none is valid. The summary lists your
    machines, extensions and combined memory use. Conflicting Record-double-tap
    claims cannot be selected together.
-5. In **Settings**, **I want my machines to be grayscale** is selected by default.
-   **Preview selected machines** opens a visual preview of every selected machine
-   with the current setting applied. Screens animate where a browser preview is
-   available; clicking one triggers its display without playing sound. Machines
-   using stock screens are identified when no visual preview is available.
-   Use **Grayscale / Original** inside the preview to compare both designs without
-   changing your installation setting. Reopening the preview starts with that setting.
-   Choose **I want my machines as they are** to keep the original artwork. Grayscale
+   **Grayscale machine graphics** is also available on this page, including in
+   collections without firmware extensions. It starts off; enabling it changes custom
+   screens while leaving stock screens unchanged. It adds no extension runtime
+   memory; the selection summary lists the graphics choice separately.
+   Open **Preview** to see and customize the selected machines together. Each custom screen has an **Install graphics** control:
+   **Use default**, **Enforce grayscale**, or **Keep original design**. Explicit
+   choices stay in place when you change the default. Choosing **Use default**
+   clears that machine's override. Stock screens remain unchanged and have no
+   override control. Overrides are retained while changing the selection in this
+   session; only selected machines' overrides enter the installation package.
+   The same dialog previews every selected machine with its setting applied.
+   For machines with a browser module, it renders the default UI once and caches
+   a frozen SVG snapshot. There is no animation loop or audio; changing graphics
+   reuses the same frame, and reopening reuses the cached snapshots. Machines
+   without a browser module show their static artwork with a fallback label.
+   Machines using stock screens are identified when no visual preview is available.
+   The preview opens on **As configured**, showing each machine's effective
+   installation setting. Use **Grayscale / Original** to compare both designs
+   without changing those settings. Reopening always returns to **As configured**.
+   Changing **Install graphics** applies immediately and switches the preview
+   to **As configured**, so its effect is visible. **Done** or Escape closes the
+   dialog while keeping the choices.
+   Uncheck **Grayscale machine graphics** to keep the original artwork by default. Grayscale
    converts the selected machines' custom SVG screens, including text, strokes,
    fills and the palette entries used by animations. It preserves geometry,
    opacity and motion; sample engines and effects retain their stock screens.
@@ -72,8 +87,10 @@ leaves the browser.
    installation; see the [conversion behavior](display.md#grayscale-artwork).
    Invalid declared variants or unsupported paints stop the build
    with a message naming the machine; choose colorful or use corrected artwork.
-   Changing this setting discards the prepared download and requires a new build.
-6. Build the firmware, then follow the installation guide using the remembered computer choice. Mac
+   Changing the default or a per-machine override discards the prepared download
+   and requires a new build. The build manifest records the default and selected
+   overrides; machine sources and saved sound parameters are unchanged.
+5. Build the firmware, then follow the installation guide using the remembered computer choice. Mac
    browsers with WebUSB send the files directly; Windows downloads a ZIP to
    copy with File Explorer. The OS write step on the device is still manual.
 
@@ -88,8 +105,7 @@ The ZIP contains:
 | `layout.json`, hashes | Keep `layout.json`: it holds your machines' numbers, and loading it into the builder next time keeps them for your projects |
 
 The ZIP and direct transfer use the same prepared files. `build.json` records
-the graphics setting and hashes of the final artwork. **I want my machines as
-they are** keeps the original SVG bytes; automatic grayscale conversion changes
+the graphics setting and hashes of the final artwork. Disabling **Grayscale machine graphics** keeps the original SVG bytes; automatic grayscale conversion changes
 only paint attributes in the packaged
 screens, without modifying the machines' source or audio code.
 
@@ -156,7 +172,7 @@ collection without uploading an OS file. Append a machine ID, for example
 the **OS** button returns to the normal builder entry. A configured collection is
 required for machine previews.
 
-`#preview/settings` opens the Settings step without an OS file. It also keeps
+`#preview/settings` remains an alias for the Extensions preview without an OS file. It also keeps
 installation disabled; returning to Machines auditions the chosen graphics mode.
 
 The extension picker has a direct preview at `#preview/extensions`, with no OS

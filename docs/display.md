@@ -274,10 +274,11 @@ changes and reduced motion in both modes. Review meaningful hue-based
 distinctions, the closest gray tones and their backgrounds across the full
 animation palette. Validation alone cannot judge clarity.
 
-The installer's **I want my machines as they are** choice preserves the original
-artwork. **I want my machines to be grayscale** keeps
+On the installer's **Extensions** page, **Grayscale machine graphics** keeps
 an already-grayscale original byte for byte; otherwise it uses the validated
 developer variant unchanged, or automatic conversion when no variant is declared.
+Disabling the option preserves original artwork by default; per-machine choices
+in **Preview** can override that default.
 The automatic fallback builds one palette from every fill and stroke, including
 off-screen animation donors. It groups strongly chromatic colors into hue
 families and assigns separate gray ranges to those families, prioritizing hue
