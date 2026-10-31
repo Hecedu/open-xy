@@ -7,7 +7,7 @@ import {presetFiles, sha256} from './core.mjs';
 // Enable / Disable actions access MIDI. On a Mac with WebUSB, explicit
 // read/send actions copy files over USB and release the device afterwards.
 // Otherwise copying is manual. Flashing remains manual.
-export function createWizard({getKit, getSelected, hasDownload, getFiles, onFirmware = async () => false, onPreviewExit = () => {}}) {
+export function createWizard({installPage = 4, getKit, getSelected, hasDownload, getFiles, onFirmware = async () => false, onPreviewExit = () => {}}) {
   const $ = id => document.getElementById(id);
   let purpose = null, stage = null, history = [], revision = 0;
   // Set when the OS-copy guide ends in file transfer mode, so the install guide
@@ -183,7 +183,7 @@ export function createWizard({getKit, getSelected, hasDownload, getFiles, onFirm
     $('flow-back').hidden = !history.length || ['write-os', 'write-result', 'write-help', 'disabled'].includes(stage);
     $('flow-back').disabled = $('flow-exit').disabled = busy;
     $('flow-exit').textContent = previewMode ? 'Back to builder' : hostPage === 1 ? 'Back to file choice' : 'Back to install choice';
-    $('flow-download').hidden = previewMode || hostPage !== 4 || !hasDownload() || sendsDirectly();
+    $('flow-download').hidden = previewMode || hostPage !== installPage || !hasDownload() || sendsDirectly();
     $('connection-help').hidden = !['enable', 'menu-help', 'missing-os', 'restart', 'disabled'].includes(stage);
     if (['enable', 'menu-help', 'missing-os', 'restart', 'disabled'].includes(stage) && !supported()) status('MIDI access is unavailable in this browser. Use Connection help below.', true);
     if (focus) { $('flow-title').focus(); Visuals.reveal($('device-flow')); }
@@ -198,7 +198,7 @@ export function createWizard({getKit, getSelected, hasDownload, getFiles, onFirm
     if (stage) history.push(stage);
     stage = next; status(); render(true);
   }
-  function begin(nextPurpose, page = nextPurpose === 'install' ? 4 : 1, preview = null) {
+  function begin(nextPurpose, page = nextPurpose === 'install' ? installPage : 1, preview = null) {
     exit(false); purpose = nextPurpose; hostPage = page; manual = false;
     previousComputer = computer;
     previewMode = !!preview;
@@ -476,7 +476,7 @@ export function createWizard({getKit, getSelected, hasDownload, getFiles, onFirm
     // Browsers do not report whether the user completed or cancelled saving.
     setTimeout(() => {
       if (hasDownload() && $('download').getAttribute('href') === url &&
-          !document.querySelector('[data-page="4"]').hidden && !$('download-overview').hidden)
+          !document.querySelector(`[data-page="${installPage}"]`).hidden && !$('download-overview').hidden)
         begin('install');
     }, 0);
   }
@@ -489,11 +489,11 @@ export function createWizard({getKit, getSelected, hasDownload, getFiles, onFirm
     previewLink(hash) {
       const match = /^#preview\/(source\/)?(mac|windows)\/([a-z-]+)$/.exec(hash);
       if (busy || !match || !(match[1] ? sourcePreviewStages : previewStages).has(match[3])) return false;
-      begin(match[1] ? 'source' : 'install', match[1] ? 1 : 4, {computer: match[2], stage: match[3]});
+      begin(match[1] ? 'source' : 'install', match[1] ? 1 : installPage, {computer: match[2], stage: match[3]});
       return true;
     },
     previewPage() { return previewMode ? hostPage : null; },
-    invalidate() { downloaded = false; if (hostPage === 4) exit(false); },
-    navigate(page) { if (stage && page !== hostPage) exit(false); if (page === 4) renderRoute(); },
+    invalidate() { downloaded = false; if (hostPage === installPage) exit(false); },
+    navigate(page) { if (stage && page !== hostPage) exit(false); if (page === installPage) renderRoute(); },
   };
 }

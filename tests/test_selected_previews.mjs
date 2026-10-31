@@ -45,9 +45,9 @@ async function harness({machines = [machine], reducedMotion = false} = {}) {
   const radios = ['grayscale', 'colorful'].map(value => Object.assign(new Element('input'), {value}));
   $('preview-graphics-grayscale').value = 'grayscale';
   $('preview-graphics-original').value = 'colorful';
-  const steps = [1, 2, 3, 4].map(step => Object.assign(new Element(), {dataset:{step:String(step)}}));
+  const steps = [1, 2, 3, 4, 5].map(step => Object.assign(new Element(), {dataset:{step:String(step)}}));
   const pages = steps.map(step => Object.assign(new Element(), {dataset:{page:step.dataset.step}}));
-  const titles = ['input-title', 'machines-title', 'settings-title', 'download-title'];
+  const titles = ['input-title', 'machines-title', 'extensions-title', 'settings-title', 'download-title'];
   const document = {
     hidden:false, getElementById:$, addEventListener() {},
     createElement:tag => new Element(tag), createElementNS:(_ns, tag) => new Element(tag),

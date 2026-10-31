@@ -17,6 +17,15 @@
   entry ([submission workflow](docs/catalog.md#submit-a-machine)). A machine that
   needs SDK changes only on `staging` targets `staging` instead. CI refuses a
   submission from a fork that changes anything else.
+- **Changing how the OP-XY behaves** (an extension: recording, controls, the
+  sequencer): like a machine, it lives in a repository of its own and reaches
+  the builder through `catalog/extensions.json`; capture, in
+  open-xy-core-machines, is the worked example. Read
+  [extensions](docs/extensions.md) first, and check it with
+  `python ../open-xy/sdk.py test --extension .`. Reuse or widen an existing
+  event; a new event, claim or action is a separate SDK pull request, proposed
+  as that page describes, never a hook beside an existing one for the same
+  stage. Extensions never patch the firmware or name stock addresses.
 - **Changing the SDK, builder or docs:** branch from `origin/staging` and open the
   pull request against `staging`. Apart from catalog entries, `main` only receives
   releases from `staging`; never base other work on it or target it.
@@ -29,7 +38,10 @@ through the catalog like any other machine.
 For machine work, follow the complete [authoring journey](docs/first-machine.md)
 and the [UX conventions](docs/ux.md): implement and test, offer audition where supported, then prepare a development
 build and propose an authorized hardware test. Follow [hardware profiling](docs/profiling.md)
-to collect the revision-bound CPU readout required for catalog submission.
+to collect the revision-bound CPU readout required for catalog submission. A
+synth's readout is a control sweep (the default for profiling builds); when it
+reports a result above the recommended 3.5%, tell the user which setting is
+heaviest and suggest making that path lighter before submitting.
 If hardware is unavailable, say that validation remains pending; a maintainer
 can measure it. Never treat a successful host check as a measured CPU result or
 hardware acceptance. A sample engine uses the public sample API and Timestretch
@@ -60,6 +72,10 @@ Read README.md and CONTRIBUTING.md. For native changes also read
   [hardware profiling](docs/profiling.md); host estimates cannot fill the catalog field.
 - Build and verification commands are local. Device operations require a separate
   user instruction. Do not infer measured cycles or recovery from host checks.
+- Copy files to a connected OP-XY with `python sdk.py device push <folder>`
+  (`list` and `pull` read it), never with a new transfer script. It mirrors the
+  folder onto the device root with backups, readback and rollback; see
+  [install](docs/build.md#5-install). If it fails, fix `tooling/device.py`.
 - Keep public docs about current interfaces and behavior. Remove obsolete text
   instead of adding another status page or repeating caveats across every guide.
 

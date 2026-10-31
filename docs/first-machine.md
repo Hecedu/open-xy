@@ -123,7 +123,7 @@ does not change your machine.
 | `display.h`, `display.cpp` | Display state and drawing callback |
 | `panel.svg.fragment` | Artwork; IDs carry the machine's ID (`<id>_panel`, `<id>_node_N`, `<id>_palette_N`) |
 | `panel.grayscale.svg.fragment` | Optional developer-authored grayscale artwork, declared in machine.json; see [the contract](display.md#grayscale-artwork) |
-| `machine.json` | Kind, SDK version and the engine number and page it asks for, used by a [firmware build](build.md#3-add-your-machine) of the folder |
+| `machine.json` | Kind and SDK version, used by a [firmware build](build.md#3-add-your-machine) of the folder, which gives the machine its numbers |
 | `tests/sound.cpp` | The machine's own host checks; extend them as the sound grows |
 
 `python sdk.py test --machine ../mymachine` checks a machine folder the way
@@ -157,8 +157,8 @@ numbers with the previous build's `--layout`. A
 
 Follow [hardware profiling](profiling.md) before claiming measured CPU cost or
 preparing a catalog submission. Commit the machine, build with profiling enabled,
-install when authorized, confirm the device has rebooted, then collect three
-runs and generate the readout. Host estimates are useful during iteration;
+install when authorized, confirm the device has rebooted, then collect a run
+([one is enough](profiling.md#collect-a-run)) and generate the readout. Host estimates are useful during iteration;
 they do not establish device timings. If hardware is unavailable, keep hardware
 validation pending and ask a maintainer to measure it.
 

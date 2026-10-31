@@ -340,9 +340,9 @@ test('Settings defaults to grayscale, rebuilds downloads and rejects results mad
   $('preview-graphics-grayscale').value = 'grayscale';
   $('preview-graphics-original').value = 'colorful';
   const radios = ['grayscale', 'colorful'].map(value => Object.assign(new Element(), {value}));
-  const steps = [1, 2, 3, 4].map(step => Object.assign(new Element(), {dataset:{step:String(step)}}));
+  const steps = [1, 2, 3, 4, 5].map(step => Object.assign(new Element(), {dataset:{step:String(step)}}));
   const pages = steps.map(el => Object.assign(new Element(), {dataset:{page:el.dataset.step}}));
-  const titles = ['input-title', 'machines-title', 'settings-title', 'download-title'];
+  const titles = ['input-title', 'machines-title', 'extensions-title', 'settings-title', 'download-title'];
   const location = {hash:'#preview/settings', pathname:'/', search:''};
   const globals = {
     document:{getElementById:$, addEventListener() {}, createElement:() => new Element(),
@@ -438,9 +438,11 @@ test('Settings defaults to grayscale, rebuilds downloads and rejects results mad
   await $('preview-selected').onclick();
   assert.equal($('selected-previews').open, false);
   api.configure(await fixture());
-  $('settings-next').onclick();
+  $('choose-extensions').onclick();
   assert.equal(pages[2].hidden, false);
-  assert.equal(pages[3].hidden, true);
+  $('settings-next').onclick();
+  assert.equal(pages[3].hidden, false);
+  assert.equal(pages[4].hidden, true);
   const files = () => wizardOptions.getFiles();
   const manifest = () => JSON.parse(new TextDecoder().decode(files()['build.json']));
   const setGraphics = value => {
@@ -459,7 +461,7 @@ test('Settings defaults to grayscale, rebuilds downloads and rejects results mad
   $('selected-previews').close(); // Native Escape also emits close and releases assets.
   await assert.rejects(fetch(originalPreviewUrl));
   await $('build').onclick();
-  assert.equal(pages[3].hidden, false);
+  assert.equal(pages[4].hidden, false);
   assert.deepEqual(manifest().settings, {graphics:'colorful'});
   const original = files()['content/display/probe.svg'].slice();
   assert.ok(wizardOptions.hasDownload());
@@ -471,7 +473,7 @@ test('Settings defaults to grayscale, rebuilds downloads and rejects results mad
   assert.equal(files(), null);
   assert.equal($('download').href, undefined);
   assert.equal($('flow-download').href, undefined);
-  assert.equal(steps[3].disabled, true);
+  assert.equal(steps[4].disabled, true);
   await assert.rejects(fetch(firstUrl)); // The previous download URL was revoked.
   await $('build').onclick();
   assert.deepEqual(manifest().settings, {graphics:'grayscale'});
@@ -490,5 +492,5 @@ test('Settings defaults to grayscale, rebuilds downloads and rejects results mad
   setGraphics('colorful'); finishPatch(Uint8Array.of(1, 2, 3)); await pending;
   assert.equal(files(), null);
   assert.equal(wizardOptions.hasDownload(), false);
-  assert.equal(steps[3].disabled, true);
+  assert.equal(steps[4].disabled, true);
 });

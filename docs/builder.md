@@ -44,7 +44,12 @@ leaves the browser.
    link to the machine's code at the commit the catalog pins. Open-XY's own
    example machines from the catalog are labelled as Open-XY machines. A
    [personal kit](#export-a-kit)'s own machines are marked **Yours**.
-4. In **Settings**, **I want my machines to be grayscale** is selected by default.
+4. Choose optional extensions using the same checkbox rows as machines. Select
+   a row to read what it does and how to use it in the details panel.
+   Extensions start off; continuing with none is valid. The summary lists your
+   machines, extensions and combined memory use. Conflicting Record-double-tap
+   claims cannot be selected together.
+5. In **Settings**, **I want my machines to be grayscale** is selected by default.
    **Preview selected machines** opens a visual preview of every selected machine
    with the current setting applied. Screens animate where a browser preview is
    available; clicking one triggers its display without playing sound. Machines
@@ -68,7 +73,7 @@ leaves the browser.
    Invalid declared variants or unsupported paints stop the build
    with a message naming the machine; choose colorful or use corrected artwork.
    Changing this setting discards the prepared download and requires a new build.
-5. Follow the installation guide using the remembered computer choice. Mac
+6. Build the firmware, then follow the installation guide using the remembered computer choice. Mac
    browsers with WebUSB send the files directly; Windows downloads a ZIP to
    copy with File Explorer. The OS write step on the device is still manual.
 
@@ -88,7 +93,7 @@ they are** keeps the original SVG bytes; automatic grayscale conversion changes
 only paint attributes in the packaged
 screens, without modifying the machines' source or audio code.
 
-Every build shows its release at boot, `OPEN 0.0.2-1.2.1` for 0.0.2, the version in
+Every build shows its release at boot, `OPEN 0.0.3-1.2.1` for 0.0.3, the version in
 [`VERSION`](../VERSION) that the builder also shows under its name and records in
 `build.json`. Timestretch starts without a sample;
 choose one on its sample page. Ring Mod is a send effect and has no preset.
@@ -96,8 +101,10 @@ choose one on its sample page. Ring Mod is a send effect and has no preset.
 The builder accepts the stock OS 1.2.1 file or any Open-XY OS made from it,
 including one from an earlier release: it rebuilds the stock image by undoing
 the reviewed edits and accepts it only if it matches OS 1.2.1 exactly. An exact
-output of the same collection also restores its machine selection; for any
-other, choose the machines again (the layout still keeps their numbers).
+output of the same collection also restores its machine and extension
+selection; for any other, choose them again (the layout still keeps machine
+numbers). Saved selection files also retain extensions; older selection files
+without that field select none.
 Encrypted `.tfw`, unknown patches and damaged files are rejected. Projects,
 presets and samples on the device are not touched.
 
@@ -119,8 +126,8 @@ an explicit click and USB permission, and releases the connection afterwards.
 
 ## Capacity and machine numbers
 
-The firmware reserves **2 MiB** of the application heap: 2040 KiB that every
-selected machine shares for code, data and state, and 8 KiB for relocated stock
+The firmware reserves **2 MiB** of the application heap: 2032 KiB that every
+selected machine shares for code, data and state, and 16 KiB for relocated stock
 tables. The memory meter shows each machine's share; see
 [memory and limits](api.md#memory-and-limits). CPU headroom is not measured.
 
@@ -151,6 +158,9 @@ required for machine previews.
 
 `#preview/settings` opens the Settings step without an OS file. It also keeps
 installation disabled; returning to Machines auditions the chosen graphics mode.
+
+The extension picker has a direct preview at `#preview/extensions`, with no OS
+file required. Building remains disabled in preview mode.
 
 Installation screens have direct preview links, such as
 `http://127.0.0.1:8918/#preview/mac/transfer`, `#preview/mac/exit-transfer`
@@ -192,7 +202,8 @@ with no collection as a UI check and never consumes private inputs.
 static assets only, with no Worker script. The `beta` environment is a separate
 `open-xy-beta` site at `beta.open-xy.com`, deployed from `staging`; production
 is deployed from `main`. Merge work into `staging`, release beta, then open a
-pull request from `staging` to `main` and release production. Catalog changes
+pull request from `staging` (or a `release/<version>` branch cut from it) to `main` and release
+production. Catalog changes
 merge into `main` (then `main` into `staging`), so a new machine can reach
 production without an SDK release.
 
@@ -256,14 +267,20 @@ sections, COMMON or weak symbols, unresolved imports, overlapping relocations,
 range overflow, constructors and memory overflow are errors. A deselected
 machine's startup and catalog callbacks resolve to `kit_absent`, which declines:
 startup skips it and its menu name is left to stock. Its audio code and state
-are omitted.
+are omitted. Extensions use the same omission mechanism: a generated accessor
+returns their callback descriptor, or resolves to `kit_absent` when deselected.
+The registry skips absent descriptors and retains collection order. Deselected
+extensions contribute no code or state; shared controller hooks still forward
+stock behavior with an empty extension registry. Export a fresh kit after this
+SDK change; older kits containing the fixed extension registry are rejected.
 
 The export checks that:
 
-- selecting the machines the native package links reproduces its `os.ldr` byte for
-  byte: every machine, or Open-XY's own when the collection doesn't fit at once
-  ([memory](api.md#memory-and-limits));
-- every non-empty selection matches GNU ld, including symbols and BSS;
+- selecting the machines the native package links, with every extension, reproduces
+  its `os.ldr` byte for byte: every machine, or Open-XY's own when the collection
+  doesn't fit at once ([memory](api.md#memory-and-limits));
+- every non-empty selection with every extension choice (including none) matches
+  GNU ld, including symbols and BSS;
 - browser output matches the Python writer, with correct catalog, artwork and ZIP;
 - every output is recognized and its selection restored, and corruption inside
   or outside the allowed edits is rejected.

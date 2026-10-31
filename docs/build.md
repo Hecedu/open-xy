@@ -8,7 +8,7 @@ machine reaches the firmware by joining the collection; read the
 [caveats](../README.md) before installing.
 
 Commands use `python`; on macOS it is usually `python3`. Building needs only
-Python 3.11+, no virtual environment or packages; the browser preview in
+Python 3.11+, no virtual environment or packages (copying to the device from Windows also needs comtypes, see [install](#5-install)); the browser preview in
 [your first machine](first-machine.md) has its own prerequisites.
 
 ## 1. Install the tools
@@ -89,11 +89,10 @@ your own copy.
 
 Start from [your first machine](first-machine.md); `sdk.py new` needs no
 preview tools. A machine is a folder that can live anywhere, such as its own
-repository. Its `machine.json` names the SDK version it targets (`"sdk": "1.0"`)
-and the engine (or effect) number and page it asks for, outside the core
-machines' fixed numbers ([identity](api.md#identity),
-[fields](api.md#registration-boundary)). Names are saved in presets and never
-change once published.
+repository. Its `machine.json` names the SDK version it targets (`"sdk": "1.5"`)
+and, for a sample engine, the stock sampler it forks; the build gives its
+numbers ([identity](api.md#identity), [fields](api.md#registration-boundary)).
+Names are saved in presets and never change once published.
 
 Projects save machine numbers, which a build takes from a layout: every package
 holds `layout.json`, the numbers its firmware has given out. Pass it to your next
@@ -109,7 +108,7 @@ Every build command takes the collection:
 
 A build needs at least one machine; the SDK holds none of its own.
 
-All selected machines share 2040 KiB ([memory and limits](api.md#memory-and-limits));
+All selected machines share 2032 KiB ([memory and limits](api.md#memory-and-limits));
 `compile` shows each machine's share. To make room, list fewer machines in your
 own collection file.
 
@@ -151,7 +150,12 @@ prints its results as JSON, then the files to install from `<out>/candidate/`.
 | `content/display/<machine>.svg`, one per synth | `/content/display/<machine>.svg` |
 
 1. Open file transfer as in step 2 and copy the files to the paths above,
-   replacing existing files. Keep the device's other content.
+   replacing existing files. Keep the device's other content. On Windows,
+   `python sdk.py device push <out>/candidate` does this instead:
+   it backs up each file it replaces, reads
+   every copied file back and restores the backups if anything fails, keeping
+   them and a record under the private folder. It needs
+   `python -m pip install comtypes==1.4.17` and never writes the boot partition.
 2. Press track 2 for "2. exit".
 3. Press track 5 for "5. write os to boot partition", keeping the OP-XY on power.
    When "firmware written ok!" appears, switch it off and on.

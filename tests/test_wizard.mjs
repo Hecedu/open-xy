@@ -321,8 +321,8 @@ test('installation links preview the edited steps without a build or device acce
   const $ = id => { assert.ok(elements.has(id), `Missing authored element: ${id}`); return elements.get(id); };
   let deviceRequests = 0, exits = 0;
   const listeners = new Map();
-  const pages = [1, 2, 3, 4].map(page => Object.assign(new Element(), {dataset: {page: String(page)}}));
-  const steps = [1, 2, 3, 4].map(step => Object.assign(new Element(), {dataset: {step: String(step)}}));
+  const pages = [1, 2, 3, 4, 5].map(page => Object.assign(new Element(), {dataset: {page: String(page)}}));
+  const steps = [1, 2, 3, 4, 5].map(step => Object.assign(new Element(), {dataset: {step: String(step)}}));
   const location = {hash: '#preview/mac/transfer', pathname: '/', search: ''};
   const globals = {
     document: {
@@ -330,9 +330,9 @@ test('installation links preview the edited steps without a build or device acce
       addEventListener() {},
       querySelectorAll: selector => ({'[data-icon]': [], '[data-page]': pages, '.steps button': steps}[selector] ?? []),
       querySelector: selector => {
-        const match = /^\[data-page="([1234])"\]( h1)?$/.exec(selector);
+        const match = /^\[data-page="([12345])"\]( h1)?$/.exec(selector);
         assert.ok(match, `Unexpected selector: ${selector}`);
-        return match[2] ? $(['input-title', 'machines-title', 'settings-title', 'download-title'][Number(match[1]) - 1]) : pages[Number(match[1]) - 1];
+        return match[2] ? $(['input-title', 'machines-title', 'extensions-title', 'settings-title', 'download-title'][Number(match[1]) - 1]) : pages[Number(match[1]) - 1];
       },
     },
     window: {addEventListener: (event, listener) => listeners.set(event, listener)},
@@ -350,7 +350,7 @@ test('installation links preview the edited steps without a build or device acce
     Object.defineProperty(globalThis, name, {value, configurable: true});
     t.after(() => descriptor ? Object.defineProperty(globalThis, name, descriptor) : delete globalThis[name]);
   }
-  const wizard = createWizard({getKit: () => null, getSelected: () => [], hasDownload: () => false,
+  const wizard = createWizard({installPage:5, getKit: () => null, getSelected: () => [], hasDownload: () => false,
     getFiles: () => ({'os.ldr': new Uint8Array(1)}), onPreviewExit: () => exits++});
   const action = label => {
     const button = $('flow-actions').children.find(button => button.textContent === label || button.id === label);
@@ -359,6 +359,7 @@ test('installation links preview the edited steps without a build or device acce
 
   for (const hash of ['#preview/mac/transfer', '#preview/windows/transfer']) {
     assert.equal(wizard.previewLink(hash), true);
+    assert.equal(wizard.previewPage(), 5);
     assert.equal($('flow-install-reminder').hidden, false);
     assert.equal($('flow-preview-note').hidden, false);
     assert.equal($('flow-download').hidden, true);
